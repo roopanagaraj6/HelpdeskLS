@@ -6,7 +6,7 @@ A modern Helpdesk application with a React frontend and a Node.js/Express backen
 
 Before running the project, ensure you have the following installed:
 - [Node.js](https://nodejs.org/) (v18 or higher recommended)
-- [MySQL](https://www.mysql.com/)
+- [MySQL](https://www.mysql.com/) 
 
 ## Environment Setup
 
