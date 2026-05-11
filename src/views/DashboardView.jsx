@@ -1,0 +1,133 @@
+import React from "react";
+import { SmartChart, DonutChart, HorizontalBarChart } from "../components/Charts";
+import { Avatar, Badge } from "../components/UIComponents";
+import { STATUS_COLOR } from "../constants/constants";
+/**
+ * Dashboard summary cards, charts, and recent-ticket feed.
+ * All data is passed as props — no internal state or API calls.
+ */
+export function DashboardView(props) {
+  const {
+  tickets, projects, users, orgs, categories,
+  currentUser,
+  priorityDist, categoryDist, categoryDistAll,
+  statusDist, orgDist, agentDist, monthlyDist,
+  dashboardOrg, setDashboardOrg,
+  showDashboardOrgDD, setShowDashboardOrgDD,
+  dashboardStats, dashboardData, dashboardDailyData,
+  categoryDistFull, dashboardClosingUsersFull,
+  catBreakdownExpanded, setCatBreakdownExpanded,
+  closuresByPersonExpanded, setClosuresByPersonExpanded,
+  setSelTicket, switchView,
+  setTvFilter, setFilterStatus, setFilterAssignment,
+  setPriorityF, setStatusF,
+ } = props;
+
+  return (
+    <>
+      {/* Background Image with Clear Display for Dashboard */}
+      <div style={{
+              position: "absolute",
+              inset: 0,
+              backgroundImage: 'url("/res/login_page_bg.jpeg")', // USER: Static asset from public/res folder
+              backgroundSize: "auto",
+              backgroundPosition: "0 0",
+              backgroundRepeat: "repeat",
+              opacity: 1,
+              zIndex: 0,
+              pointerEvents: "none"
+            }} />
+            <div style={{ position: "relative", zIndex: 1 }}>
+              {/* ── ROW 1: TICKETS ── */}
+              <div style={{ marginBottom: 6 }}>
+                <span style={{ fontSize: 14, fontWeight: 900, color: "#1e293b", textTransform: "uppercase", letterSpacing: "0.1em", marginLeft: 2 }}>🎫 TICKETS</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 9, marginBottom: 20 }}>
+                {[
+                  { label: "Open", value: dashboardStats.open, bg: "#fef3c7", accent: "#f59e0b", icon: "", action: () => { switchView("tickets"); setTvFilter("all"); setFilterStatus(["open"]); setFilterAssignment([]); setPriorityF("All"); } },
+                  ...((currentUser?.role === "Admin" || currentUser?.role === "Manager") ? [{ label: "Unassigned", value: dashboardData.filter(t => (!t.assignees || t.assignees.length === 0) && t.status !== "Closed" && t.status !== "Bin").length, bg: "#f3e8ff", accent: "#a855f7", icon: "", action: () => { switchView("tickets"); setTvFilter("all"); setFilterAssignment(["unassigned"]); setFilterStatus(["open"]); setPriorityF("All"); } }] : []),
+                  { label: "Critical", value: dashboardStats.critical, bg: "#fee2e2", accent: "#ef4444", icon: "", action: () => { switchView("tickets"); setTvFilter("all"); setFilterStatus(["open"]); setPriorityF("Critical"); setFilterAssignment([]); } },
+                  { label: "Closed", value: dashboardStats.closed, bg: "#dcfce7", accent: "#22c55e", icon: "", action: () => { switchView("tickets"); setTvFilter("all"); setFilterStatus(["closed"]); setFilterAssignment([]); setPriorityF("All"); } },
+                  { label: "Total", value: dashboardStats.total, bg: "#dbeafe", accent: "#3b82f6", icon: "", action: () => { switchView("tickets"); setTvFilter("all"); setStatusF("All"); setPriorityF("All"); } },
+                  { label: "Reopened", value: dashboardStats.reopened, bg: "#fff7ed", accent: "#f97316", icon: "", action: () => { switchView("tickets"); setTvFilter("reopened"); setFilterStatus([]); setPriorityF("All"); } },
+                ].map(s => (
+                  <div key={s.label} onClick={s.action} style={{ background: s.bg, borderRadius: 12, padding: "16px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.1)", borderLeft: `5px solid ${s.accent}`, cursor: "pointer", transition: "all 0.2s ease" }}
+                    onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.15)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.1)"; e.currentTarget.style.transform = "translateY(0)"; }}>
+                    <div style={{ fontSize: 20, marginBottom: 6 }}>{s.icon}</div>
+                    <div style={{ fontSize: 32, fontWeight: 900, color: s.accent, lineHeight: 1 }}>{s.value}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#1e293b", marginTop: 4 }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* ✅ REMOVED: Separate Unassigned Card - Now integrated above */}
+
+              {/* ✅ REMOVED: Projects stats section - Now shown only in Projects view */}
+
+              {/* Dashboard Graphs - Different layouts for different roles */}
+              {(currentUser?.role === "Admin" || currentUser?.role === "Manager") ? (
+                <>
+                  {/* Row 1: Tickets Over Time + Priority */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+                    <SmartChart title="Daily Ticket count (Over a Week)" data={dashboardDailyData} defaultColor="#3b82f6" />
+                    <SmartChart title="Priority Distribution" data={priorityDist} defaultType="pie" />
+                  </div>
+
+                  {/* Row 2: Category Breakdown + Closures by Person */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+                    <div style={{ background: "#fff", borderRadius: 12, padding: 18, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Category Breakdown</div>
+                        <button onClick={() => setCatBreakdownExpanded(v => !v)} style={{ fontSize: 11, fontWeight: 600, color: "#3b82f6", background: "none", border: "none", cursor: "pointer", padding: 0 }}>{catBreakdownExpanded ? "Show Less ↑" : "View All ↓"}</button>
+                      </div>
+                      <HorizontalBarChart data={catBreakdownExpanded ? categoryDistFull : categoryDistFull.slice(0, 10)} />
+                    </div>
+                    <div style={{ background: "#fff", borderRadius: 12, padding: 18, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Closures by Person</div>
+                        <button onClick={() => setClosuresByPersonExpanded(v => !v)} style={{ fontSize: 11, fontWeight: 600, color: "#3b82f6", background: "none", border: "none", cursor: "pointer", padding: 0 }}>{closuresByPersonExpanded ? "Show Less ↑" : "View All ↓"}</button>
+                      </div>
+                      <HorizontalBarChart data={closuresByPersonExpanded ? dashboardClosingUsersFull : dashboardClosingUsersFull.slice(0, 10)} />
+                    </div>
+                  </div>
+
+                  {/* Recent Tickets for Admin/Manager */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
+                    <div style={{ background: "#faf8f4", borderRadius: 12, padding: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10, color: "#374151" }}>Recent Tickets</div>
+                      {(currentUser?.role === "Admin" || currentUser?.role === "Manager" ? tickets : tickets.filter(t => t.reportedBy === currentUser?.name || t.assignees?.some(a => a.id === currentUser?.id))).slice(0, 10).map(t => (
+                        <div key={t.id} onClick={() => setSelTicket(t)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px", borderRadius: 8, cursor: "pointer", border: "1px solid #f1f5f9", marginBottom: 5 }}>
+                          <div style={{ display: "flex" }}>{(t.assignees || []).slice(0, 2).map((a, i) => <div key={a.id ?? `${t.id}-a-${i}`} style={{ marginLeft: i > 0 ? -6 : 0, border: "2px solid #fff", borderRadius: "50%" }}><Avatar name={a.name} size={24} /></div>)}{!t.assignees?.length && <Avatar name="?" size={24} />}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.summary}</div><div style={{ fontSize: 10, color: "#94a3b8" }}>{t.id} · {t.org}</div></div>
+                          <Badge label={t.status} style={{...STATUS_COLOR[t.status], fontSize: 10}}/>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Viewer/Agent: 3 charts side by side */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+                    <SmartChart title="Daily Ticket count (Over a Week)" data={dashboardDailyData} defaultColor="#3b82f6" size="small" />
+                    <SmartChart title="Priority Distribution" data={priorityDist} defaultType="pie" size="small" />
+                  </div>
+                  <div style={{ background: "#faf8f4", borderRadius: 12, padding: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginTop: 12 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10, color: "#374151" }}>My Recent Tickets</div>
+                    {tickets.filter(t => t.assignees?.some(a => a.id === currentUser?.id)).slice(0, 10).map(t => (
+                      <div key={t.id} onClick={() => setSelTicket(t)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px", borderRadius: 8, cursor: "pointer", border: "1px solid #f1f5f9", marginBottom: 5 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.summary}</div><div style={{ fontSize: 10, color: "#94a3b8" }}>{t.id} · {t.org}</div></div>
+                        <Badge label={t.status} style={{...STATUS_COLOR[t.status], fontSize: 10}}/>
+                      </div>
+                    ))}
+                    {tickets.filter(t => t.assignees?.some(a => a.id === currentUser?.id)).length === 0 && <div style={{ color: "#94a3b8", fontSize: 12 }}>No tickets assigned</div>}
+                  </div>
+                  {/* Viewer/Agent: Horizontal Bar Charts row */}
+                  {/* NO Recent Tickets for Viewer/Agent */}
+                </>
+              )}
+            </div>
+          </>
+  );
+}

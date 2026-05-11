@@ -1,0 +1,20 @@
+// ─── SERVER CONFIGURATION ─────────────────────────────────────────────────────
+export const SERVER_IP = "10.0.2.111";
+export const BASE_URL = `http://${SERVER_IP}:5000/api`;
+
+// ─── API ENDPOINTS ─────────────────────────────────────────────────────────────
+export const TICKETS_API = `${BASE_URL}/tickets`;
+export const ORGS_API = `${BASE_URL}/orgs`;
+export const CATEGORIES_API = `${BASE_URL}/categories`;
+export const CUSTOM_ATTRS_API = `${BASE_URL}/customAttrs`;
+export const USERS_API = `${BASE_URL}/users`;
+export const LOCATIONS_API = `${BASE_URL}/locations`;
+export const VENDORS_API = `${BASE_URL}/vendors`;
+export const DB_API = `${BASE_URL}/all-data`;
+export const AUTH_API = `${BASE_URL}/auth/login`;
+export const IMPORT_API = `${BASE_URL}/import`;
+export const PROJECTS_API = `${BASE_URL}/projects`;
+export const VALIDATE_SESSIONS_API = `${BASE_URL}/validate-sessions`;
+export const NOTIFICATIONS_API = `${BASE_URL}/notifications`;
+export const SSE_URL = `http://${SERVER_IP}:5000/api/sse`;
+export const DEVICES_API = `${BASE_URL}/devices`;

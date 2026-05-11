@@ -11,6 +11,32 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
+// ─── CACHE ────────────────────────────────────────────────────────────────────
+const cache = new Map();
+const CACHE_TTL = {
+  paginated: 15 * 1000,      // 15s — ticket pages
+  counts:    30 * 1000,      // 30s — ticket counts
+  stats:     60 * 1000,      // 60s — dashboard/agent stats
+  static:    5 * 60 * 1000,  // 5m  — orgs, categories, users, depts, locations, vendors
+  alldata:   2 * 60 * 1000,  // 2m  — /api/all-data
+};
+
+function cacheGet(key) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.exp) { cache.delete(key); return null; }
+  return entry.val;
+}
+function cacheSet(key, val, ttl) {
+  cache.set(key, { val, exp: Date.now() + ttl });
+}
+function cacheDel(...patterns) {
+  for (const pat of patterns)
+    for (const key of cache.keys())
+      if (key.startsWith(pat)) cache.delete(key);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ─── 1. DATABASE CONNECTION ──────────────────────────────────────────────────
 const sequelize = new Sequelize(
     process.env.DB_NAME || "deskflow",
@@ -265,7 +291,22 @@ const fmt = (doc) => {
     return obj;
 };
 
-// ─── 3. AUTH ROUTES ──────────────────────────────────────────────────────────
+// ─── AUTO-INVALIDATION MIDDLEWARE ─────────────────────────────────────────────
+// Any POST/PUT/DELETE automatically clears relevant cache keys
+app.use((req, res, next) => {
+  if (!["POST","PUT","DELETE","PATCH"].includes(req.method)) return next();
+  const url = req.path;
+  if (url.includes("/tickets"))   cacheDel("paginated:", "counts", "stats:");
+  if (url.includes("/orgs"))      cacheDel("static:orgs", "alldata");
+  if (url.includes("/categories"))cacheDel("static:categories", "alldata", "paginated:", "stats:");
+  if (url.includes("/departments"))cacheDel("static:departments", "alldata");
+  if (url.includes("/locations")) cacheDel("static:locations", "alldata");
+  if (url.includes("/vendors"))   cacheDel("static:vendors", "alldata");
+  if (url.includes("/users"))     cacheDel("static:users", "alldata", "stats:");
+  if (url.includes("/all-data"))  cacheDel("alldata");
+  next();
+});
+// ─────────────────────────────────────────────────────────────────────────────
 
 app.post("/api/auth/login", async (req, res) => {
     try {
@@ -505,16 +546,23 @@ app.post("/api/validate-sessions", async (req, res) => {
 });
 
 app.get("/api/orgs", async (req, res) => {
-    try { res.json(await Org.findAll()); }
+    try {
+        const hit = cacheGet("static:orgs");
+        if (hit) return res.json(hit);
+        const data = await Org.findAll();
+        cacheSet("static:orgs", data, CACHE_TTL.static);
+        res.json(data);
+    }
     catch (err) { res.status(500).json({ error: err.message }); }
 });
 app.post("/api/orgs", async (req, res) => {
-    try { res.status(201).json(await Org.create(req.body)); }
+    try { cacheDel("static:orgs", "alldata"); res.status(201).json(await Org.create(req.body)); }
     catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.put("/api/orgs/:id", async (req, res) => {
     try {
+        cacheDel("static:orgs", "alldata");
         const org = await Org.findByPk(req.params.id);
         if (!org) return res.status(404).json({ error: "Org not found" });
         await org.update({
@@ -546,7 +594,10 @@ app.delete("/api/orgs/:id", async (req, res) => {
 // ✅ NEW: Vendor Endpoints
 app.get("/api/vendors", async (req, res) => {
     try {
+        const hit = cacheGet("static:vendors");
+        if (hit) return res.json(hit);
         const vendors = await Vendor.findAll({ order: [['name', 'ASC']] });
+        cacheSet("static:vendors", vendors, CACHE_TTL.static);
         res.json(vendors);
     }
     catch (err) { res.status(500).json({ error: err.message }); }
@@ -554,6 +605,7 @@ app.get("/api/vendors", async (req, res) => {
 
 app.post("/api/vendors", async (req, res) => {
     try {
+        cacheDel("static:vendors", "alldata");
         if (!req.body.name || !req.body.name.trim()) {
             return res.status(400).json({ error: "Vendor name is required" });
         }
@@ -569,6 +621,7 @@ app.post("/api/vendors", async (req, res) => {
 
 app.put("/api/vendors/:id", async (req, res) => {
     try {
+        cacheDel("static:vendors", "alldata");
         const vendor = await Vendor.findByPk(req.params.id);
         if (!vendor) return res.status(404).json({ error: "Vendor not found" });
         await vendor.update({
@@ -583,6 +636,7 @@ app.put("/api/vendors/:id", async (req, res) => {
 
 app.delete("/api/vendors/:id", async (req, res) => {
     try {
+        cacheDel("static:vendors", "alldata");
         const vendor = await Vendor.findByPk(req.params.id);
         if (vendor) await vendor.destroy();
         res.json({ success: true });
@@ -591,22 +645,26 @@ app.delete("/api/vendors/:id", async (req, res) => {
 
 app.get("/api/categories", async (req, res) => {
     try {
+        const hit = cacheGet("static:categories");
+        if (hit) return res.json(hit);
         const cats = await Category.findAll({ order: [['name', 'ASC']] });
-        res.json(cats.map(fmt));
+        const result = cats.map(fmt);
+        cacheSet("static:categories", result, CACHE_TTL.static);
+        res.json(result);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 app.post("/api/categories", async (req, res) => {
-    try { res.status(201).json(await Category.create(req.body)); }
+    try { cacheDel("static:categories", "alldata"); res.status(201).json(await Category.create(req.body)); }
     catch (err) { res.status(500).json({ error: err.message }); }
 });
 app.put("/api/categories/:id", async (req, res) => {
     try {
+        cacheDel("static:categories", "alldata", "paginated:");
         const cat = await Category.findByPk(req.params.id);
         if (!cat) return res.status(404).json({ error: "Not found" });
         const oldName = cat.name;
         const newName = req.body.name?.trim();
         await cat.update(req.body);
-        // Update all tickets whose category matches the old name
         if (newName && newName !== oldName) {
             await Ticket.update({ category: newName }, { where: { category: oldName } });
         }
@@ -615,9 +673,9 @@ app.put("/api/categories/:id", async (req, res) => {
 });
 app.delete("/api/categories/:id", async (req, res) => {
     try {
+        cacheDel("static:categories", "alldata", "paginated:");
         const cat = await Category.findByPk(req.params.id);
         if (cat) {
-            // Ensure "Uncategorised" exists, create if not
             let fallback = await Category.findOne({ where: { name: "Uncategorised" } });
             if (!fallback) {
                 fallback = await Category.create({ name: "Uncategorised", color: "#94a3b8", subcategories: [] });
@@ -682,10 +740,14 @@ app.delete("/api/customAttrs/:id", async (req, res) => {
 // ✅ Departments (Full CRUD — org-aware)
 app.get("/api/departments", async (req, res) => {
     try {
+        const hit = cacheGet("static:departments");
+        if (hit) return res.json(hit);
         const departments = await Department.findAll({
             order: [['orgName', 'ASC'], ['sortOrder', 'ASC'], ['name', 'ASC']]
         });
-        res.json(departments.map(fmt));
+        const result = departments.map(fmt);
+        cacheSet("static:departments", result, CACHE_TTL.static);
+        res.json(result);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -765,8 +827,12 @@ app.delete("/api/departments/:id", async (req, res) => {
 // ✅ NEW: Locations (Full CRUD)
 app.get("/api/locations", async (req, res) => {
     try {
+        const hit = cacheGet("static:locations");
+        if (hit) return res.json(hit);
         const locations = await Location.findAll({ order: [['name', 'ASC']] });
-        res.json(locations.map(fmt));
+        const result = locations.map(fmt);
+        cacheSet("static:locations", result, CACHE_TTL.static);
+        res.json(result);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -1119,6 +1185,8 @@ app.delete("/api/tickets", async (req, res) => {
 
 app.get("/api/stats/agents", async (req, res) => {
     try {
+        const hit = cacheGet("stats:agents");
+        if (hit) return res.json(hit);
         const [assigned, closed] = await Promise.all([
             sequelize.query(
                 `SELECT JSON_UNQUOTE(JSON_EXTRACT(a.val, '$.name')) as name, COUNT(*) as cnt
@@ -1137,12 +1205,49 @@ app.get("/api/stats/agents", async (req, res) => {
         ]);
         const assignedMap = Object.fromEntries(assigned.map(r => [r.name, Number(r.cnt)]));
         const closedMap = Object.fromEntries(closed.map(r => [r.name, Number(r.cnt)]));
-        res.json({ assigned: assignedMap, closed: closedMap });
+        const result = { assigned: assignedMap, closed: closedMap };
+        cacheSet("stats:agents", result, CACHE_TTL.stats);
+        res.json(result);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get("/api/stats/dashboard", async (req, res) => {
+    try {
+        const org = req.query.org || "";
+        const cacheKey = `stats:dashboard:${org}`;
+        const hit = cacheGet(cacheKey);
+        if (hit) return res.json(hit);
+
+        const where = { status: { [Op.ne]: "Bin" } };
+        if (org) where.org = org;
+
+        const [priorityRows, categoryRows, dailyRows] = await Promise.all([
+            sequelize.query(
+                `SELECT priority, COUNT(*) as cnt FROM Tickets WHERE status != 'Bin' ${org ? "AND org = :org" : ""} GROUP BY priority`,
+                { replacements: { org }, type: sequelize.QueryTypes.SELECT }
+            ),
+            sequelize.query(
+                `SELECT category, COUNT(*) as cnt FROM Tickets WHERE status != 'Bin' ${org ? "AND org = :org" : ""} GROUP BY category`,
+                { replacements: { org }, type: sequelize.QueryTypes.SELECT }
+            ),
+            sequelize.query(
+                `SELECT DATE(createdAt) as day, COUNT(*) as cnt FROM Tickets WHERE status != 'Bin' AND createdAt >= DATE_SUB(NOW(), INTERVAL 7 DAY) ${org ? "AND org = :org" : ""} GROUP BY DATE(createdAt)`,
+                { replacements: { org }, type: sequelize.QueryTypes.SELECT }
+            ),
+        ]);
+
+        const result = { priority: priorityRows, category: categoryRows, daily: dailyRows };
+        cacheSet(cacheKey, result, CACHE_TTL.stats);
+        res.json(result);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.get("/api/tickets/paginated", async (req, res) => {
     try {
+        const cacheKey = "paginated:" + JSON.stringify(req.query);
+        const hit = cacheGet(cacheKey);
+        if (hit) return res.json(hit);
+
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 50;
         const offset = (page - 1) * limit;
@@ -1151,16 +1256,31 @@ app.get("/api/tickets/paginated", async (req, res) => {
         const priority = req.query.priority || "";
         const org = req.query.org || "";
 
+        const category = req.query.category || "";
+        const assignee = req.query.assignee || "";
+
         const where = {};
         if (status) where.status = status;
         if (priority) where.priority = priority;
         if (org) where.org = org;
+        if (category) where.category = category;
         if (search) {
             where[Op.or] = [
                 { summary: { [Op.like]: `%${search}%` } },
                 { id: { [Op.like]: `%${search}%` } },
                 { org: { [Op.like]: `%${search}%` } },
             ];
+        }
+        if (assignee) {
+            where[Op.and] = [
+                sequelize.literal(`JSON_SEARCH(assignees, 'one', ${sequelize.escape(assignee)}, NULL, '$[*].name') IS NOT NULL`)
+            ];
+        }
+        if (assignee) {
+            where[Op.and] = where[Op.and] || [];
+            where[Op.and].push(
+                sequelize.literal(`JSON_SEARCH(assignees, 'one', ${sequelize.escape(assignee)}, NULL, '$[*].name') IS NOT NULL`)
+            );
         }
 
         const { count, rows } = await Ticket.findAndCountAll({
@@ -1171,12 +1291,33 @@ app.get("/api/tickets/paginated", async (req, res) => {
             offset,
         });
 
-        res.json({
+        const result = {
             tickets: rows.map(fmt),
             total: count,
             page,
             totalPages: Math.ceil(count / limit),
-        });
+        };
+        cacheSet(cacheKey, result, CACHE_TTL.paginated);
+        res.json(result);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get("/api/tickets/counts", async (req, res) => {
+    try {
+        const hit = cacheGet("counts");
+        if (hit) return res.json(hit);
+        const [byStatus] = await Promise.all([
+            sequelize.query(
+                `SELECT status, COUNT(*) as cnt FROM Tickets WHERE status != 'Bin' GROUP BY status`,
+                { type: sequelize.QueryTypes.SELECT }
+            )
+        ]);
+        const total = byStatus.reduce((sum, r) => sum + parseInt(r.cnt), 0);
+        const critical = await Ticket.count({ where: { priority: "Critical", status: "Open" } });
+        const reopened = await Ticket.count({ where: { status: "Reopened" } });
+        const result = { byStatus, total, critical, reopened };
+        cacheSet("counts", result, CACHE_TTL.counts);
+        res.json(result);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -1335,23 +1476,19 @@ app.delete("/api/projects/:id", async (req, res) => {
 
 app.get("/api/all-data", async (req, res) => {
     try {
-        const [users, orgs, categories, customAttrs, tickets, webcasts, satsangs, projects, departments, locations, vendors] = await Promise.all([
-            User.findAll(), Org.findAll(), Category.findAll(), CustomAttr.findAll(), Ticket.findAll({ attributes: { exclude: ["image", "timeline", "comments"] } }),
-            Webcast.findAll({ attributes: { exclude: ["image", "timeline", "comments"] } }), Satsang.findAll(), Project.findAll(), Department.findAll(), Location.findAll(), Vendor.findAll()
+        const hit = cacheGet("alldata");
+        if (hit) return res.json(hit);
+        const [users, orgs, categories, customAttrs, satsangs, departments, locations, vendors] = await Promise.all([
+        User.findAll(), Org.findAll(), Category.findAll(), CustomAttr.findAll(),
+        Satsang.findAll(), Department.findAll(), Location.findAll(), Vendor.findAll()
         ]);
-        res.json({
-            users: users.map(fmt),
-            orgs: orgs.map(fmt),
-            categories: categories.map(fmt),
-            customAttrs: customAttrs.map(fmt),
-            tickets: tickets.map(t => { const o = fmt(t); delete o.image; delete o.timeline; delete o.comments; return o; }),
-            webcasts: webcasts.map(t => { const o = fmt(t); delete o.image; delete o.timeline; delete o.comments; return o; }),
-            satsangs: satsangs.map(fmt),
-            projects: projects.map(fmt),
-            departments: departments.map(fmt),
-            locations: locations.map(fmt),
-            vendors: vendors.map(fmt),
-        });
+        const result = {
+            users: users.map(fmt), orgs: orgs.map(fmt), categories: categories.map(fmt),
+            customAttrs: customAttrs.map(fmt), satsangs: satsangs.map(fmt),
+            departments: departments.map(fmt), locations: locations.map(fmt), vendors: vendors.map(fmt),
+        };
+        cacheSet("alldata", result, CACHE_TTL.alldata);
+        res.json(result);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -1432,6 +1569,19 @@ app.post("/api/import/:table", async (req, res) => {
                     }
                 });
 
+                // 5. Generate the next ID in the sequence
+                // Ensure JSON fields are stored as strings if DB expects strings
+                ['assignees','cc','customAttrs','timeline','comments'].forEach(f => {
+                    if (cleanItem[f] !== undefined && typeof cleanItem[f] !== 'string') {
+                        cleanItem[f] = JSON.stringify(cleanItem[f]);
+                    }
+                });
+                // Ensure assignees have id field
+                if (cleanItem.assignees) {
+                    const parsed = typeof cleanItem.assignees === 'string' ? JSON.parse(cleanItem.assignees) : cleanItem.assignees;
+                    const fixed = parsed.map(a => ({ ...a, id: a.id || a.name }));
+                    cleanItem.assignees = JSON.stringify(fixed);
+                }
                 // 5. Generate the next ID in the sequence
                 cleanItem.id = `${prefix}-${String(nextIdNum).padStart(4, "0")}`;
                 nextIdNum++;
