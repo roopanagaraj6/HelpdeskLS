@@ -617,6 +617,9 @@ export default function HelpDesk() {
   const [confirmModal, setConfirmModal] = useState({ show: false, title: "", message: "", onConfirm: null, onCancel: null });
   const showConfirmation = confirmModal.show;
   const setShowConfirmation = (v) => setConfirmModal(v);
+  useEffect(() => {
+    if (!currentUser) setConfirmModal({ show: false, title: "", message: "", onConfirm: null, onCancel: null });
+  }, [currentUser]);
   const confirmationConfig = confirmModal;
   const [agentDetailModal, setAgentDetailModal] = useState({ show: false, user: null });
   const [selectedTickets, setSelectedTickets] = useState(new Set());

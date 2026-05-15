@@ -54,6 +54,7 @@ export function useAuthHandlers(ctx) {
       // 4. Cache in session and local state
       saveSession(onDutyUser);
       setCurrentUser(onDutyUser);
+      setShowConfirmation({ show: false });
       setView("dashboard");
       localStorage.setItem("deskflow_view", "dashboard");
 
