@@ -1483,9 +1483,9 @@ export default function HelpDesk() {
 
   // ✅ NEW: Dashboard stats (filtered by organization)
   const dashboardStats = useMemo(() => {
-
   const isAgent = currentUser?.role === "Agent" || currentUser?.role === "Viewer";
-  // Use server counts for all non-agent roles (server now returns org+date filtered counts)
+  const unassigned = dashboardStatsMap.counts?.unassigned ?? 0;
+
   if (!isAgent && dashboardStatsMap.counts) {
     return {
       total: dashboardStatsMap.counts.total,
@@ -1493,11 +1493,10 @@ export default function HelpDesk() {
       closed: dashboardStatsMap.counts.closed,
       critical: dashboardStatsMap.counts.critical,
       reopened: dashboardStatsMap.counts.reopened,
-      unassigned: dashboardStatsMap.counts.unassigned
+      unassigned,
     };
   }
-  // Fallback for agents (scoped to their tickets) or before server data loads
-  if (!isAgent && serverTicketCounts && dashboardOrg === "all" && dashboardTimePeriod === "all") {
+  if (!isAgent && serverTicketCounts && !dashboardStatsMap.counts && dashboardOrg === "all" && dashboardTimePeriod === "all") {
     const open = serverTicketCounts.byStatus?.find(r => r.status === "Open")?.cnt || 0;
     const closed = serverTicketCounts.byStatus?.find(r => r.status === "Closed")?.cnt || 0;
     return {
@@ -1505,7 +1504,8 @@ export default function HelpDesk() {
       open: parseInt(open),
       closed: parseInt(closed),
       critical: serverTicketCounts.critical,
-      reopened: serverTicketCounts.reopened
+      reopened: serverTicketCounts.reopened,
+      unassigned,
     };
   }
   let base = dashboardData;
@@ -1515,7 +1515,8 @@ export default function HelpDesk() {
     open: base.filter(x => x.status === "Open").length,
     closed: base.filter(x => x.status === "Closed").length,
     critical: base.filter(x => x.priority === "Critical" && x.status === "Open").length,
-    reopened: base.filter(x => (x.timeline || []).some(e => e.action === "Reopened" || (e.action?.includes("Status changed to Open") && (x.timeline||[]).some(prev => prev.action?.includes("Status changed to Closed"))))).length
+    reopened: base.filter(x => (x.timeline || []).some(e => e.action === "Reopened" || (e.action?.includes("Status changed to Open") && (x.timeline||[]).some(prev => prev.action?.includes("Status changed to Closed"))))).length,
+    unassigned,
   };
 }, [dashboardData, currentUser, serverTicketCounts, dashboardStatsMap, dashboardOrg, dashboardTimePeriod]);
 

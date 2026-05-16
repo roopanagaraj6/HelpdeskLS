@@ -472,13 +472,19 @@ export function useTicketHandlers(ctx) {
 
   const updateStatus = async (id, status) => {
     // ✅ NEW: If closing ticket, ask for remark first
-    if (status === "Closed" || status === "Open") {
-      setClosingTicketId(id);
-      setTicketRemark("");
-      const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-      setClosedDate(now.toISOString().slice(0, 16));
-      setShowRemarkModal(true);
-      return;
+    if (status === "Closed") {
+    setClosingTicketId(id);
+    setTicketRemark("");
+    const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    setClosedDate(now.toISOString().slice(0, 16));
+    setShowRemarkModal(true);
+    return;
+    }
+    if (status === "Reopened") {
+        setClosingTicketId(id);
+        setTicketRemark("");
+        setShowRemarkModal(true);
+        return;
     }
 
     const t = tickets.find(x => x.id === id); if (!t) return;
@@ -549,7 +555,7 @@ export function useTicketHandlers(ctx) {
     if (!t) return;
     try {
       const nowISO = new Date().toISOString();
-      const newStatus = t.status === "Closed" ? "Open" : "Closed";
+      const newStatus = t.status === "Closed" ? "Reopened" : "Closed";
       const closedByName = closedBy ? closedBy.name : currentUser.name;
       const newTimelineEvent = { action: `Status changed to ${newStatus}`, by: currentUser.name, date: nowISO, note: `Reason: ${ticketRemark}${closedBy ? ` · Closed by: ${closedBy.name}` : ""}${newStatus === "Closed" && closedDate ? ` · Closed Date: ${new Date(closedDate).toLocaleString()}` : ""}` };
       const updatedT = { ...t, status: newStatus, updated: nowISO, closedBy: newStatus === "Closed" ? closedByName : null, closedAt: newStatus === "Closed" ? (closedDate ? new Date(closedDate).toISOString() : nowISO) : null, timeline: [...(t.timeline || []), newTimelineEvent] };

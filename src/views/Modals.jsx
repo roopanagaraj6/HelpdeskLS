@@ -868,7 +868,7 @@ export function Modals(props) {
               {selTicket.status === "Closed" ? (
                 <>
                   {(currentUser?.role === "Admin" || currentUser?.role === "Manager") && (
-                    <button onClick={() => setPendingTicketStatus("Open")} style={{ padding: "5px 13px", borderRadius: 7, border: "1.5px solid #3b82f6", background: pendingTicketStatus === "Open" ? "#3b82f6" : "#eff6ff", color: pendingTicketStatus === "Open" ? "#fff" : "#1d4ed8", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif" }}>🔄 Reopen Ticket</button>
+                    <button onClick={() => { setClosingTicketId(selTicket.id); setTicketRemark(""); setShowRemarkModal(true); }} style={{ padding: "5px 13px", borderRadius: 7, border: "1.5px solid #3b82f6", background: pendingTicketStatus === "Open" ? "#3b82f6" : "#eff6ff", color: pendingTicketStatus === "Open" ? "#fff" : "#1d4ed8", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif" }}>🔄 Reopen Ticket</button>
                   )}
                   {(currentUser?.role === "Agent" || currentUser?.role === "Viewer") && (
                     <button onClick={async () => {

@@ -1215,68 +1215,24 @@ app.get("/api/stats/agents", async (req, res) => {
 
 app.get("/api/stats/dashboard", async (req, res) => {
     try {
-        const org = req.query.org || "";
+        const org      = req.query.org      || "";
         const dateFrom = req.query.dateFrom || "";
         const cacheKey = `stats:dashboard:${org}:${dateFrom}`;
         const hit = cacheGet(cacheKey);
         if (hit) return res.json(hit);
 
-        const orgClause = org ? "AND org = :org" : "";
-        const dateClause = dateFrom ? "AND createdAt >= :dateFrom" : "";
-        const replacements = { org: org || undefined, dateFrom: dateFrom ? new Date(dateFrom + "T00:00:00") : undefined };
+        const orgClause  = org      ? `AND t.org = ${sequelize.escape(org)}` : "";
+        const dateClause = dateFrom ? `AND t.createdAt >= ${sequelize.escape(dateFrom + "T00:00:00")}` : "";
 
-        const [priorityRows, categoryRows, dailyRows] = await Promise.all([
-            sequelize.query(
-                `SELECT priority, COUNT(*) as cnt FROM Tickets WHERE status != 'Bin' ${orgClause} ${dateClause} GROUP BY priority`,
-                { replacements, type: sequelize.QueryTypes.SELECT }
-            ),
-            sequelize.query(
-                `SELECT category, COUNT(*) as cnt FROM Tickets WHERE status != 'Bin' ${orgClause} ${dateClause} GROUP BY category`,
-                { replacements, type: sequelize.QueryTypes.SELECT }
-            ),
-            sequelize.query(
-                `SELECT DATE(createdAt) as day, COUNT(*) as cnt FROM Tickets WHERE status != 'Bin' AND createdAt >= DATE_SUB(NOW(), INTERVAL 7 DAY) ${orgClause} GROUP BY DATE(createdAt)`,
-                { replacements, type: sequelize.QueryTypes.SELECT }
-            ),
-        ]);
-
-        const [openCount, closedCount, criticalCount, reopenedCount, totalCount, unassignedCount] = await Promise.all([
-            Ticket.count({ where: { status: "Open",   ...(org ? { org } : {}), ...(dateFrom ? { createdAt: { [Op.gte]: new Date(dateFrom + "T00:00:00") } } : {}) } }),
-            Ticket.count({ where: { status: "Closed", ...(org ? { org } : {}), ...(dateFrom ? { createdAt: { [Op.gte]: new Date(dateFrom + "T00:00:00") } } : {}) } }),
-            Ticket.count({ where: { priority: "Critical", status: "Open", ...(org ? { org } : {}), ...(dateFrom ? { createdAt: { [Op.gte]: new Date(dateFrom + "T00:00:00") } } : {}) } }),
-            Ticket.count({ where: { status: "Reopened", ...(org ? { org } : {}), ...(dateFrom ? { createdAt: { [Op.gte]: new Date(dateFrom + "T00:00:00") } } : {}) } }),
-            Ticket.count({ where: { status: { [Op.ne]: "Bin" }, ...(org ? { org } : {}), ...(dateFrom ? { createdAt: { [Op.gte]: new Date(dateFrom + "T00:00:00") } } : {}) } }),
-            Ticket.count({ where: { status: "Open", assignees: { [Op.or]: [null, "[]"] }, ...(org ? { org } : {}), ...(dateFrom ? { createdAt: { [Op.gte]: new Date(dateFrom + "T00:00:00") } } : {}) } }),
-        ]);
-        const result = {
-            priority: priorityRows, category: categoryRows, daily: dailyRows,
-            counts: { open: openCount, closed: closedCount, critical: criticalCount, reopened: reopenedCount, total: totalCount, unassigned: unassignedCount }
-        };
-        cacheSet(cacheKey, result, CACHE_TTL.stats);
-        res.json(result);
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.get("/api/stats/dashboard", async (req, res) => {
-    try {
-        const org      = req.query.org      || "";
-        const dateFrom = req.query.dateFrom || "";
-
-        const orgClause      = org      ? `AND t.org = ${sequelize.escape(org)}` : "";
-        const dateClause     = dateFrom ? `AND t.createdAt >= ${sequelize.escape(dateFrom + "T00:00:00")}` : "";
-        const closedDateClause = dateFrom ? `AND t.createdAt >= ${sequelize.escape(dateFrom + "T00:00:00")}` : "";
-
-        const [byStatus, byPriority, byCategory, daily, totals] = await Promise.all([
+        const [byStatus, priority, category, daily, totals, unassignedRows] = await Promise.all([
             sequelize.query(
                 `SELECT status, COUNT(*) as cnt FROM Tickets t
-                 WHERE t.status != 'Bin' ${orgClause} ${dateClause}
-                 GROUP BY status`,
+                 WHERE t.status != 'Bin' ${orgClause} ${dateClause} GROUP BY status`,
                 { type: sequelize.QueryTypes.SELECT }
             ),
             sequelize.query(
                 `SELECT priority, COUNT(*) as cnt FROM Tickets t
-                 WHERE t.status != 'Bin' ${orgClause} ${dateClause}
-                 GROUP BY priority`,
+                 WHERE t.status != 'Bin' ${orgClause} ${dateClause} GROUP BY priority`,
                 { type: sequelize.QueryTypes.SELECT }
             ),
             sequelize.query(
@@ -1293,24 +1249,42 @@ app.get("/api/stats/dashboard", async (req, res) => {
                 { type: sequelize.QueryTypes.SELECT }
             ),
             sequelize.query(
-                `SELECT
-                   COUNT(*) as total,
-                   SUM(CASE WHEN priority='Critical' AND status='Open' THEN 1 ELSE 0 END) as critical
+                `SELECT COUNT(*) as total,
+                        SUM(CASE WHEN status='Open'     THEN 1 ELSE 0 END) as open,
+                        SUM(CASE WHEN status='Closed'   THEN 1 ELSE 0 END) as closed,
+                        SUM(CASE WHEN status='Reopened' THEN 1 ELSE 0 END) as reopened,
+                        SUM(CASE WHEN priority='Critical' AND status='Open' THEN 1 ELSE 0 END) as critical
                  FROM Tickets t WHERE t.status != 'Bin' ${orgClause} ${dateClause}`,
+                { type: sequelize.QueryTypes.SELECT }
+            ),
+            sequelize.query(
+                `SELECT COUNT(*) as cnt FROM Tickets t
+                 WHERE t.status = 'Open'
+                 AND (t.assignees IS NULL OR t.assignees = '[]')
+                 ${orgClause} ${dateClause}`,
                 { type: sequelize.QueryTypes.SELECT }
             ),
         ]);
 
-        const totalRow = totals[0] || {};
-        res.json({
+        const r = totals[0] || {};
+        const result = {
             byStatus,
-            byPriority,
-            category: byCategory,
+            priority,
+            category,
             daily,
-            total:    Number(totalRow.total)    || 0,
-            critical: Number(totalRow.critical) || 0,
-            reopened: 0,
-        });
+            total:    Number(r.total)    || 0,
+            critical: Number(r.critical) || 0,
+            counts: {
+                total:      Number(r.total)    || 0,
+                open:       Number(r.open)     || 0,
+                closed:     Number(r.closed)   || 0,
+                critical:   Number(r.critical) || 0,
+                reopened:   Number(r.reopened) || 0,
+                unassigned: Number(unassignedRows[0]?.cnt) || 0,
+            },
+        };
+        cacheSet(cacheKey, result, CACHE_TTL.stats);
+        res.json(result);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
