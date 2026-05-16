@@ -1260,7 +1260,7 @@ app.get("/api/stats/dashboard", async (req, res) => {
             sequelize.query(
                 `SELECT COUNT(*) as cnt FROM Tickets t
                  WHERE t.status = 'Open'
-                 AND (t.assignees IS NULL OR t.assignees = '[]')
+                 AND (t.assignees IS NULL OR JSON_LENGTH(t.assignees) = 0)
                  ${orgClause} ${dateClause}`,
                 { type: sequelize.QueryTypes.SELECT }
             ),
