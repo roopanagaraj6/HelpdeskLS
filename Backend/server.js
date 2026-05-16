@@ -1839,8 +1839,12 @@ async function cleanupOldNotifications() {
 }
 
 // ─── HEALTH ───────────────────────────────────────────────────────────────────
-
-app.get("/", (req, res) => res.json({ msg: "🚀 DeskFlow API v1" }));
+let serverReady = false;
+app.get("/", (req, res) => res.json({ msg: "🚀 DeskFlow API v1", ready: serverReady }));
+app.get("/api/ready", (req, res) => {
+  if (serverReady) res.json({ ready: true });
+  else res.status(503).json({ ready: false });
+});
 
 // ── SSE: real-time push to browser clients ──
 const sseClients = new Map();
@@ -2022,7 +2026,10 @@ sequelize.sync({ alter: true }).then(async () => {
     // ✅ NO HARDCODED DEPARTMENTS & LOCATIONS - Only add via frontend!
     // Departments and Locations must be created manually through Settings tabs
 
-    app.listen(PORT, () => console.log(`🚀 DeskFlow API → http://localhost:${PORT}`));
+    app.listen(PORT, () => {
+      serverReady = true;
+      console.log(`🚀 DeskFlow API → http://localhost:${PORT}`);
+    });
 }).catch(err => {
     console.error("❌ Sync Error. Check if MySQL service is running.");
     console.error(err.message);

@@ -48,6 +48,106 @@ import { ReportsView } from "./views/ReportsView";
 import { BinView } from "./views/BinView";
 import { SettingsView } from "./views/SettingsView";
 import { Modals } from "./views/Modals";
+// ─── BOOT SCREEN ──────────────────────────────────────────────────────────────
+function BootScreen({ phase }) {
+  const steps = [
+    { label: "Connecting to database" },
+    { label: "Syncing schemas" },
+    { label: "Running migrations" },
+    { label: "Loading dashboard data" },
+  ];
+  // Which step index is actively animating
+  const activeIdx = phase === "waking" ? 0 : phase === "loading" ? 3 : 4;
+
+  return (
+    <div style={{
+      display: "flex", height: "100vh", alignItems: "center", justifyContent: "center",
+      flexDirection: "column", fontFamily: "'DM Sans', sans-serif",
+      background: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 60%, #0f172a 100%)",
+      position: "relative", overflow: "hidden",
+    }}>
+      {/* Ambient orbs */}
+      <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: "18%", left: "12%", width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle, rgba(59,130,246,0.10) 0%, transparent 70%)", animation: "df-orb1 7s ease-in-out infinite" }} />
+        <div style={{ position: "absolute", bottom: "18%", right: "12%", width: 260, height: 260, borderRadius: "50%", background: "radial-gradient(circle, rgba(139,92,246,0.10) 0%, transparent 70%)", animation: "df-orb2 9s ease-in-out infinite" }} />
+        <div style={{ position: "absolute", top: "55%", left: "55%", width: 180, height: 180, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.07) 0%, transparent 70%)", animation: "df-orb1 5s ease-in-out infinite reverse" }} />
+      </div>
+
+      {/* Logo */}
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 52, animation: "df-fadeUp 0.5s ease both" }}>
+        <div style={{
+          width: 58, height: 58, borderRadius: 18,
+          background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 30, animation: "df-logoPulse 2.5s ease-in-out infinite",
+        }}>⚡</div>
+        <div>
+          <div style={{ fontSize: 30, fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.5px", lineHeight: 1.1 }}>DeskFlow</div>
+          <div style={{ fontSize: 11, color: "#64748b", letterSpacing: "0.12em", textTransform: "uppercase", marginTop: 2 }}>Help Desk Pro</div>
+        </div>
+      </div>
+
+      {/* Steps */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, width: 290, marginBottom: 36, animation: "df-fadeUp 0.5s ease 0.1s both" }}>
+        {steps.map((s, i) => {
+          const isDone = i < activeIdx;
+          const isActive = i === activeIdx;
+          const isPending = i > activeIdx;
+          return (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 11, opacity: isPending ? 0.3 : 1, transition: "opacity 0.5s ease" }}>
+              <div style={{
+                width: 26, height: 26, borderRadius: 7, flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 12, fontWeight: 700, transition: "all 0.4s ease",
+                background: isDone ? "rgba(34,197,94,0.15)" : isActive ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.04)",
+                border: `1px solid ${isDone ? "rgba(34,197,94,0.35)" : isActive ? "rgba(59,130,246,0.4)" : "rgba(255,255,255,0.08)"}`,
+                color: isDone ? "#4ade80" : isActive ? "#60a5fa" : "#475569",
+              }}>
+                {isDone ? "✓" : (i + 1)}
+              </div>
+              <span style={{
+                fontSize: 13, fontWeight: isActive ? 600 : 400,
+                color: isDone ? "#4ade80" : isActive ? "#93c5fd" : "#475569",
+                transition: "color 0.4s ease",
+              }}>{s.label}</span>
+              {isActive && (
+                <div style={{ marginLeft: "auto", display: "flex", gap: 3 }}>
+                  {[0, 1, 2].map(d => (
+                    <div key={d} style={{ width: 4, height: 4, borderRadius: "50%", background: "#3b82f6", animation: `df-dot 1.2s ease-in-out ${d * 0.2}s infinite` }} />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Progress bar */}
+      <div style={{ width: 290, height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 99, overflow: "hidden", marginBottom: 14, animation: "df-fadeUp 0.5s ease 0.2s both" }}>
+        <div style={{
+          height: "100%", borderRadius: 99,
+          background: "linear-gradient(90deg, #3b82f6, #8b5cf6)",
+          animation: phase === "waking" ? "df-barWake 2.5s ease-in-out infinite" : "df-barLoad 1.6s ease-in-out infinite",
+        }} />
+      </div>
+
+      <div style={{ fontSize: 12, color: "#475569", animation: "df-fadeUp 0.5s ease 0.3s both" }}>
+        {phase === "waking" ? "Server is starting up, please wait…" : "Loading your workspace…"}
+      </div>
+
+      <style>{`
+        @keyframes df-fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes df-logoPulse { 0%,100% { box-shadow:0 0 28px rgba(99,102,241,0.25); } 50% { box-shadow:0 0 52px rgba(99,102,241,0.55); } }
+        @keyframes df-dot { 0%,80%,100% { transform:scale(0.55); opacity:0.35; } 40% { transform:scale(1); opacity:1; } }
+        @keyframes df-orb1 { 0%,100% { transform:translate(0,0); } 50% { transform:translate(28px,-18px); } }
+        @keyframes df-orb2 { 0%,100% { transform:translate(0,0); } 50% { transform:translate(-18px,26px); } }
+        @keyframes df-barWake { 0% { width:0%; margin-left:0%; } 50% { width:55%; margin-left:22%; } 100% { width:0%; margin-left:100%; } }
+        @keyframes df-barLoad { 0% { width:15%; margin-left:-15%; } 50% { width:55%; margin-left:28%; } 100% { width:15%; margin-left:105%; } }
+      `}</style>
+    </div>
+  );
+}
+
 export default function HelpDesk() {
 
   const [users, setUsers] = useState([]);
@@ -56,6 +156,7 @@ export default function HelpDesk() {
   const [customAttrs, setCustomAttrs] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [bootPhase, setBootPhase] = useState("waking"); // "waking" | "loading" | ""
   const [targetTable, setTargetTable] = useState("tickets");
   const [exportFilterType, setExportFilterType] = useState("all"); // all, assignee, category, type
   const [exportFilterValue, setExportFilterValue] = useState(""); // assignee id, category name, type
@@ -829,12 +930,38 @@ export default function HelpDesk() {
     }
   };
 
-  // On mount: always load app data; if session existed it was restored above via useState init
+  // On mount: poll /api/ready until server is up, then load data
   useEffect(() => {
-    loadData();
-    // Safety timeout - if loading doesn't complete in 5 seconds, stop showing loading screen
-    const timeout = setTimeout(() => setLoading(false), 5000);
-    return () => clearTimeout(timeout);
+    let cancelled = false;
+    const boot = async () => {
+      let serverOk = false;
+      // Quick probe — if server already warm, skip waking phase
+      try {
+        const probe = await axios.get(`${BASE_URL}/ready`, { timeout: 1500 });
+        if (probe.data.ready) { serverOk = true; setBootPhase("loading"); }
+      } catch (_) {}
+
+      if (!serverOk) {
+        setBootPhase("waking");
+        for (let i = 0; i < 40 && !cancelled; i++) {
+          await new Promise(r => setTimeout(r, 1000));
+          try {
+            const r = await axios.get(`${BASE_URL}/ready`, { timeout: 1500 });
+            if (r.data.ready) { serverOk = true; break; }
+          } catch (_) {}
+        }
+        if (!cancelled) setBootPhase("loading");
+      }
+
+      if (!cancelled) {
+        setLoading(true);
+        await loadData();
+        setBootPhase("");
+      }
+    };
+    boot();
+    const timeout = setTimeout(() => { setLoading(false); setBootPhase(""); }, 45000);
+    return () => { cancelled = true; clearTimeout(timeout); };
   }, []);
 
   // Silent background refresh on page navigation — no loading spinner
@@ -1828,11 +1955,7 @@ export default function HelpDesk() {
           markInboxRead, acceptInboxForwardRequest,
           rejectInboxForwardRequest }                     = useNavHandlers(ctx);
   // ─── LOADING SCREEN ─────────────────────────────────────────────────────────
-  if (loading) return (
-    <div style={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans',sans-serif", background: "#f8fafc", color: "#64748b", fontSize: 18, fontWeight: 600 }}>
-      Loading DeskFlow Data...
-    </div>
-  );
+  if (loading || bootPhase) return <BootScreen phase={bootPhase} />;
 
   // ─── AUTH SCREENS ──────────────────────────────────────────────────────────
   if (!currentUser) {
@@ -1963,31 +2086,6 @@ export default function HelpDesk() {
   }
 
   // ─── MAIN APP ──────────────────────────────────────────────────────────────
-  // ✅ NEW: Show loading screen only while actually loading or no user
-  if (loading || !currentUser) {
-    return (
-      <div style={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center", background: "#f8fafc", fontFamily: "'DM Sans',sans-serif" }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 48, marginBottom: 20, animation: "spin 1s linear infinite" }}>⚡</div>
-          <div style={{ fontSize: 18, fontWeight: 600, color: "#0f172a", marginBottom: 8 }}>DeskFlow</div>
-          <div style={{ fontSize: 14, color: "#64748b", marginBottom: 20 }}>Loading your dashboard...</div>
-          <div style={{ width: 40, height: 4, background: "#e2e8f0", borderRadius: 2, margin: "0 auto", overflow: "hidden" }}>
-            <div style={{ height: "100%", background: "linear-gradient(90deg, #3b82f6, #6366f1)", animation: "loading 1.5s ease-in-out infinite", width: "30%" }}></div>
-          </div>
-        </div>
-        <style>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-          @keyframes loading {
-            0%, 100% { transform: translateX(-100%); }
-            50% { transform: translateX(400%); }
-          }
-        `}</style>
-      </div>
-    );
-  }
 
   return (
     <div style={{ display: "flex", height: "100vh", fontFamily: "'DM Sans',sans-serif", background: "#f8fafc", color: "#1e293b", overflow: "hidden" }}>
