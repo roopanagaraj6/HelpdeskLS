@@ -41,6 +41,7 @@ import { useNavHandlers } from "./hooks/useNavHandlers";
 // ── Views ───────────────────────────────────────────────────────────────────
 import { DashboardView } from "./views/DashboardView";
 import { TicketsView } from "./views/TicketsView";
+import { AlertsView } from "./views/AlertsView";
 import { ProjectsView } from "./views/ProjectsView";
 import { WebcastView } from "./views/WebcastView";
 import { ReportsView } from "./views/ReportsView";
@@ -303,24 +304,43 @@ export default function HelpDesk() {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [showExport, setShowExport] = useState(false);
   const [ticketPage, setTicketPage] = useState(1);
+  const [ticketSort, setTicketSort] = useState({});
+  const ticketSortRef = useRef({});
+  useEffect(() => { ticketSortRef.current = ticketSort; setTicketPage(1); }, [ticketSort]);
   const importRef = useRef(null);
 
   const TICKETS_PER_PAGE = 25;
   useEffect(() => {
     setTicketPage(1);
-  }, [search, statusF, priorityF, tvFilter, view, orgFilter, filterStatus, filterAssignment, filterAssignee, filterCategory]);
+  }, [search, statusF, priorityF, tvFilter, view, orgFilter, filterStatus, filterAssignment, filterAssignee, filterCategory, ticketSort]);
 
-  // Fetch correct page from server when page or filters change
+  const [ticketsLoading, setTicketsLoading] = useState(false);
   useEffect(() => {
     if (view !== "tickets") return;
+    setTicketsLoading(true);
     const params = new URLSearchParams({ limit: 25, page: ticketPage });
     if (debouncedSearch) params.set("search", debouncedSearch);
     if (priorityF !== "All") params.set("priority", priorityF);
     if (orgFilter !== "all") params.set("org", orgFilter);
-    if (filterStatus.length === 1 && filterStatus[0] === "open") params.set("status", "Open");
-    if (filterStatus.length === 1 && filterStatus[0] === "closed") params.set("status", "Closed");
+
+    // tvFilter drives server-side status — takes priority over filterStatus chips
+    if (tvFilter === "open")    { params.set("status", "Open"); }
+    else if (tvFilter === "closed")  { params.set("status", "Closed"); }
+    else if (tvFilter === "pastdue") { params.set("status", "Open"); params.set("pastdue", "1"); }
+    else if (tvFilter === "reopened") { params.set("status", "Reopened"); }
+    else if (tvFilter === "unassigned") { params.set("unassigned", "1"); params.set("status", "Open"); }
+    else {
+      // tvFilter is "all" or other — use filterStatus chips
+      if (filterStatus.length === 1 && filterStatus[0] === "open")    params.set("status", "Open");
+      if (filterStatus.length === 1 && filterStatus[0] === "closed")  params.set("status", "Closed");
+      if (filterStatus.length === 1 && filterStatus[0] === "pastdue") { params.set("status", "Open"); params.set("pastdue", "1"); }
+      if (filterAssignment.length === 1 && filterAssignment[0] === "unassigned") params.set("unassigned", "1");
+      if (filterAssignment.length === 1 && filterAssignment[0] === "vendor")     params.set("hasVendor", "1");
+    }
+
     if (filterCategory) params.set("category", filterCategory);
     if (filterAssignee.length === 1) params.set("assignee", filterAssignee[0]);
+    if (ticketSortRef.current?._sortField === "created") params.set("sortDir", ticketSortRef.current._sortDir || "desc");
     axios.get(`${BASE_URL}/tickets/paginated?${params}`)
       .then(res => {
         const parsed = (res.data.tickets || []).map(t => ({
@@ -332,9 +352,10 @@ export default function HelpDesk() {
         }));
         setTickets(parsed);
         setTicketTotalCount(res.data.total || 0);
+        setTicketsLoading(false);
       })
-      .catch(() => {});
-  }, [ticketPage, view, debouncedSearch, priorityF, orgFilter, filterStatus, filterCategory, filterAssignee]);
+      .catch(() => { setTicketsLoading(false); });
+  }, [ticketPage, view, debouncedSearch, priorityF, orgFilter, filterStatus, filterCategory, filterAssignee, filterAssignment, tvFilter, ticketSort]);
 
   // ── Project filters ──
   const [projSearch, setProjSearch] = useState("");
@@ -683,9 +704,8 @@ export default function HelpDesk() {
   }, [showProjColPicker]);
 
   // ── Per-table sort state ──
-  const [ticketSort, setTicketSort] = useState({});
-  const [projSort, setProjSort] = useState({});
   const [userSort, setUserSort] = useState({ _sortField: "name", _sortDir: "asc" });
+  const [projSort, setProjSort] = useState({});
   const [orgSort, setOrgSort] = useState({ _sortField: "name", _sortDir: "asc" });
   const [catSort, setCatSort] = useState({});
   const [deptSort, setDeptSort] = useState({});
@@ -1387,6 +1407,9 @@ export default function HelpDesk() {
     inboxItems, setInboxItems, seenActivityIds,
     setTvFilter, setPvFilter, setSettingsTab,
     addDailyNotif,
+    isTrueWebcast,
+    selTicket,
+    ticketImage,
   };
 
   // ✅ NEW: Filter for webcast tickets only
@@ -1414,7 +1437,7 @@ export default function HelpDesk() {
   const totalPages = Math.ceil(ticketTotalCount / TICKETS_PER_PAGE);
 
   // Filter tickets by column filters
-  const allSortedTickets = useMemo(() => applySort(filtered, ticketSort), [filtered, ticketSort]);
+  const allSortedTickets = useMemo(() => filtered, [filtered]);
 
   // Paginate the sorted list
   const currentTickets = allSortedTickets;
@@ -1455,9 +1478,25 @@ export default function HelpDesk() {
 
   const stats = useMemo(() => ({ total: fbr.length, open: fbr.filter(x => x.status === "Open").length, closed: fbr.filter(x => x.status === "Closed").length, critical: fbr.filter(x => x.priority === "Critical").length }), [fbr]);
 
+  const [dashboardStatsMap, setDashboardStatsMap] = useState({ priority: [], category: [], daily: [] });
+  const [dashboardStatsLoading, setDashboardStatsLoading] = useState(false);
+
   // ✅ NEW: Dashboard stats (filtered by organization)
   const dashboardStats = useMemo(() => {
+
   const isAgent = currentUser?.role === "Agent" || currentUser?.role === "Viewer";
+  // Use server counts for all non-agent roles (server now returns org+date filtered counts)
+  if (!isAgent && dashboardStatsMap.counts) {
+    return {
+      total: dashboardStatsMap.counts.total,
+      open: dashboardStatsMap.counts.open,
+      closed: dashboardStatsMap.counts.closed,
+      critical: dashboardStatsMap.counts.critical,
+      reopened: dashboardStatsMap.counts.reopened,
+      unassigned: dashboardStatsMap.counts.unassigned
+    };
+  }
+  // Fallback for agents (scoped to their tickets) or before server data loads
   if (!isAgent && serverTicketCounts && dashboardOrg === "all" && dashboardTimePeriod === "all") {
     const open = serverTicketCounts.byStatus?.find(r => r.status === "Open")?.cnt || 0;
     const closed = serverTicketCounts.byStatus?.find(r => r.status === "Closed")?.cnt || 0;
@@ -1478,7 +1517,7 @@ export default function HelpDesk() {
     critical: base.filter(x => x.priority === "Critical" && x.status === "Open").length,
     reopened: base.filter(x => (x.timeline || []).some(e => e.action === "Reopened" || (e.action?.includes("Status changed to Open") && (x.timeline||[]).some(prev => prev.action?.includes("Status changed to Closed"))))).length
   };
-}, [dashboardData, currentUser, serverTicketCounts, dashboardOrg, dashboardTimePeriod]);
+}, [dashboardData, currentUser, serverTicketCounts, dashboardStatsMap, dashboardOrg, dashboardTimePeriod]);
 
   // For dashboard: Agents and Viewers only see stats for projects assigned to them
   const dashboardProjects = useMemo(() => {
@@ -1490,13 +1529,28 @@ export default function HelpDesk() {
 
   const projStats = useMemo(() => ({ total: dashboardProjects.length, open: dashboardProjects.filter(x => x.status === "Open").length, closed: dashboardProjects.filter(x => x.status === "Closed").length, critical: dashboardProjects.filter(x => x.priority === "Critical" && x.status !== "Closed").length }), [dashboardProjects]);
   const [agentStatsMap, setAgentStatsMap] = useState({ assigned: {}, closed: {} });
-  const [dashboardStatsMap, setDashboardStatsMap] = useState({ priority: [], category: [], daily: [] });
   useEffect(() => {
     axios.get(`${BASE_URL}/stats/agents`).then(r => setAgentStatsMap(r.data)).catch(() => {});
   }, [tickets]);
   useEffect(() => {
-    axios.get(`${BASE_URL}/stats/dashboard${dashboardOrg !== "all" ? `?org=${dashboardOrg}` : ""}`).then(r => setDashboardStatsMap(r.data)).catch(() => {});
-  }, [dashboardOrg]);
+    const params = new URLSearchParams();
+    if (dashboardOrg !== "all") params.set("org", dashboardOrg);
+    if (dashboardTimePeriod !== "all") {
+      const cutoff = new Date();
+      if (dashboardTimePeriod === "1d") cutoff.setHours(0, 0, 0, 0);
+      else if (dashboardTimePeriod === "7d") cutoff.setDate(cutoff.getDate() - 7);
+      else if (dashboardTimePeriod === "1m") cutoff.setMonth(cutoff.getMonth() - 1);
+      else if (dashboardTimePeriod === "3m") cutoff.setMonth(cutoff.getMonth() - 3);
+      else if (dashboardTimePeriod === "6m") cutoff.setMonth(cutoff.getMonth() - 6);
+      else if (dashboardTimePeriod === "1y") cutoff.setFullYear(cutoff.getFullYear() - 1);
+      params.set("dateFrom", cutoff.toISOString().split("T")[0]);
+    }
+    const qs = params.toString();
+    setDashboardStatsLoading(true);
+    axios.get(`${BASE_URL}/stats/dashboard${qs ? `?${qs}` : ""}`)
+      .then(r => { setDashboardStatsMap(r.data); setDashboardStatsLoading(false); })
+      .catch(() => { setDashboardStatsLoading(false); });
+  }, [dashboardOrg, dashboardTimePeriod]);
 
 
   const agentStats = useMemo(() => {
@@ -1520,19 +1574,19 @@ export default function HelpDesk() {
       const map = Object.fromEntries(dashboardStatsMap.priority.map(r => [r.priority, Number(r.cnt)]));
       return PRIORITIES.map(p => ({ label: p, value: map[p] || 0, color: PRIORITY_COLOR[p] }));
     }
-    let base = tickets.filter(t => t.status !== "Bin" && (dashboardOrg === "all" || t.org === dashboardOrg));
+    let base = dashboardData.filter(t => t.status !== "Bin");
     if (isAgent) base = base.filter(t => t.assignees?.some(a => a.id === currentUser?.id || a.name === currentUser?.name));
     return PRIORITIES.map(p => ({ label: p, value: base.filter(t => t.priority === p).length, color: PRIORITY_COLOR[p] }));
-  }, [dashboardStatsMap, tickets, dashboardOrg, currentUser]);
+  }, [dashboardStatsMap, dashboardData, dashboardTimePeriod, dashboardOrg, currentUser]);
   const categoryCountMap = useMemo(() => {
     if (dashboardStatsMap.category.length) {
       return Object.fromEntries(dashboardStatsMap.category.map(r => [r.category, Number(r.cnt)]));
     }
     const map = {};
-    tickets.filter(t => t.status !== "Bin" && (dashboardOrg === "all" || t.org === dashboardOrg))
+    dashboardData.filter(t => t.status !== "Bin")
       .forEach(t => { map[t.category] = (map[t.category] || 0) + 1; });
     return map;
-  }, [dashboardStatsMap, tickets, dashboardOrg]);
+  }, [dashboardStatsMap, dashboardData, dashboardTimePeriod, dashboardOrg]);
 
   const categoryDist = useMemo(() => categories.slice(0, 6).map(c => ({ label: c.name, value: categoryCountMap[c.name] || 0, color: c.color })), [categoryCountMap, categories]);
   const categoryDistFull = useMemo(() => {
@@ -1710,6 +1764,7 @@ export default function HelpDesk() {
   const { handleSubmit, deleteTicket, updateStatus,
     handleSelectiveImport, handleExport,
     toggleSel, toggleCurrentPage, toggleAllFiltered,
+    toggleAssignee,
     addCC, clearAllTickets, closeTicketWithRemark,
     compressImage } = useTicketHandlers(ctx);
   const { handleForward, handleSendForRepair,
@@ -1730,23 +1785,41 @@ export default function HelpDesk() {
           saveProfile }                                   = useProfileHandlers(ctx);
   const restoreTicket = async (id) => {
     const t = tickets.find(x => x.id === id); if (!t) return;
-    const up = { ...t, status: "Open" };
-    await axios.put(`${TICKETS_API}/${id}`, up);
-    setTickets(p => p.map(x => x.id === id ? up : x));
+    try {
+      await axios.put(`${TICKETS_API}/${id}`, { status: "Open" });
+      setTickets(p => p.map(x => x.id === id ? { ...x, status: "Open" } : x));
+      setCustomAlert({ show: true, message: "✅ Ticket restored to Open", type: "success" });
+    } catch (e) {
+      setCustomAlert({ show: true, message: "❌ Failed to restore ticket", type: "error" });
+    }
   };
   const restoreProject = async (id) => {
     const p = projects.find(x => x.id === id); if (!p) return;
-    const up = { ...p, status: "Open" };
-    await axios.put(`${PROJECTS_API}/${id}`, up);
-    setProjects(prev => prev.map(x => x.id === id ? up : x));
+    try {
+      await axios.put(`${PROJECTS_API}/${id}`, { status: "Open" });
+      setProjects(prev => prev.map(x => x.id === id ? { ...x, status: "Open" } : x));
+      setCustomAlert({ show: true, message: "✅ Project restored to Open", type: "success" });
+    } catch (e) {
+      setCustomAlert({ show: true, message: "❌ Failed to restore project", type: "error" });
+    }
   };
   const permanentDeleteTicket = async (id) => {
-    await axios.delete(`${TICKETS_API}/${id}`);
-    setTickets(p => p.filter(x => x.id !== id));
+    try {
+      await axios.delete(`${TICKETS_API}/${id}`);
+      setTickets(p => p.filter(x => x.id !== id));
+      setCustomAlert({ show: true, message: "🗑️ Ticket permanently deleted", type: "success" });
+    } catch (e) {
+      setCustomAlert({ show: true, message: "❌ Failed to delete ticket", type: "error" });
+    }
   };
   const permanentDeleteProject = async (id) => {
-    await axios.delete(`${PROJECTS_API}/${id}`);
-    setProjects(p => p.filter(x => x.id !== id));
+    try {
+      await axios.delete(`${PROJECTS_API}/${id}`);
+      setProjects(p => p.filter(x => x.id !== id));
+      setCustomAlert({ show: true, message: "🗑️ Project permanently deleted", type: "success" });
+    } catch (e) {
+      setCustomAlert({ show: true, message: "❌ Failed to delete project", type: "error" });
+    }
   };
   
   const { sideNav, stabs, getPageTitle, thStyle, tdStyle,
@@ -2940,6 +3013,7 @@ export default function HelpDesk() {
               showDashboardOrgDD={showDashboardOrgDD}
               setShowDashboardOrgDD={setShowDashboardOrgDD}
               dashboardStats={dashboardStats}
+              dashboardStatsLoading={dashboardStatsLoading}
               dashboardData={dashboardData}
               dashboardDailyData={dashboardDailyData}
               categoryDistFull={categoryDistFull}
@@ -2957,10 +3031,22 @@ export default function HelpDesk() {
           )}
 
           {/* ── TICKETS ── */}
-          {(view === "tickets" || view === "alerts") && (
+          {view === "alerts" && (
+            <AlertsView
+              alertNotifs={alertNotifs}
+              inboxItems={inboxItems}
+              inboxUnread={inboxUnread}
+              currentUser={currentUser}
+              handleNotificationClick={handleNotificationClick}
+              acceptInboxForwardRequest={acceptInboxForwardRequest}
+              rejectInboxForwardRequest={rejectInboxForwardRequest}
+            />
+          )}
+          {view === "tickets" && (
             <TicketsView
               tickets={tickets} users={users} orgs={orgs}
               ticketTotalCount={ticketTotalCount}
+              ticketsLoading={ticketsLoading}
               categories={categories} currentUser={currentUser}
               filtered={filtered} tvFilter={tvFilter} setTvFilter={setTvFilter}
               filterStatus={filterStatus} setFilterStatus={setFilterStatus}
@@ -2977,6 +3063,9 @@ export default function HelpDesk() {
               showTicketExport={showTicketExport} setShowTicketExport={setShowTicketExport}
               showTicketColPicker={showTicketColPicker} setShowTicketColPicker={setShowTicketColPicker}
               visibleTicketCols={visibleTicketCols} setVisibleTicketCols={setVisibleTicketCols}
+              showTicketColExport={showTicketColExport} setShowTicketColExport={setShowTicketColExport}
+              ticketExportCols={ticketExportCols} setTicketExportCols={setTicketExportCols}
+              ticketExportMode={ticketExportMode} setTicketExportMode={setTicketExportMode}
               toggleSel={toggleSel} toggleCurrentPage={toggleCurrentPage}
               toggleAllFiltered={toggleAllFiltered}
               updateStatus={updateStatus} deleteTicket={deleteTicket}
@@ -2990,7 +3079,12 @@ export default function HelpDesk() {
               importRef={importRef} handleSelectiveImport={handleSelectiveImport}
               handleExport={handleExport}
               setShowNewTicket={setShowNewTicket}
-              inboxItems={inboxItems}
+              setForm={setForm} emptyForm={emptyForm} dashboardOrg={dashboardOrg}
+              setConfirmModal={setConfirmModal} setCustomAlert={setCustomAlert}
+              setTickets={setTickets} isTrueWebcast={isTrueWebcast}
+              alertNotifs={alertNotifs} inboxItems={inboxItems} inboxUnread={inboxUnread}
+              acceptInboxForwardRequest={acceptInboxForwardRequest}
+              rejectInboxForwardRequest={rejectInboxForwardRequest}
             />
           )}
 
@@ -3006,11 +3100,29 @@ export default function HelpDesk() {
               projSort={projSort} setProjSort={setProjSort}
               activeProjFilterDD={activeProjFilterDD} setActiveProjFilterDD={setActiveProjFilterDD}
               showProjExportDD={showProjExportDD} setShowProjExportDD={setShowProjExportDD}
+              showProjColExport={showProjColExport} setShowProjColExport={setShowProjColExport}
+              projExportCols={projExportCols} setProjExportCols={setProjExportCols}
+              projExportMode={projExportMode} setProjExportMode={setProjExportMode}
               showProjColPicker={showProjColPicker} setShowProjColPicker={setShowProjColPicker}
               visibleProjCols={visibleProjCols} setVisibleProjCols={setVisibleProjCols}
               updateProjectStatus={updateProjectStatus} deleteProject={deleteProject}
               setSelProject={setSelProject} setShowNewProject={setShowNewProject}
               handleExport={handleExport}
+              setProjForm={setProjForm}
+              emptyProjectForm={emptyProjectForm}
+              dashboardOrg={dashboardOrg}
+              getProgressFromStatus={getProgressFromStatus}
+              setConfirmModal={setConfirmModal}
+              setCustomAlert={setCustomAlert}
+              setProjects={setProjects}
+              projSearch={projSearch} setProjSearch={setProjSearch}
+              projFilterStatus={projFilterStatus} setProjFilterStatus={setProjFilterStatus}
+              projFilterAssignment={projFilterAssignment} setProjFilterAssignment={setProjFilterAssignment}
+              projFilterAssignee={projFilterAssignee} setProjFilterAssignee={setProjFilterAssignee}
+              projFilterAssigneeSearch={projFilterAssigneeSearch} setProjFilterAssigneeSearch={setProjFilterAssigneeSearch}
+              projFilterCategory={projFilterCategory} setProjFilterCategory={setProjFilterCategory}
+              projFilterCategorySearch={projFilterCategorySearch} setProjFilterCategorySearch={setProjFilterCategorySearch}
+              projFilterPriority={projFilterPriority} setProjFilterPriority={setProjFilterPriority}
             />
           )}
 
@@ -3051,6 +3163,8 @@ export default function HelpDesk() {
               permanentDeleteTicket={permanentDeleteTicket}
               permanentDeleteProject={permanentDeleteProject}
               thStyle={thStyle} tdStyle={tdStyle}
+              setConfirmModal={setConfirmModal}
+              setCustomAlert={setCustomAlert}
             />
           )}
 
@@ -3101,6 +3215,8 @@ export default function HelpDesk() {
               handleExport={handleExport}
               handleSelectiveImport={handleSelectiveImport}
               importRef={importRef}
+              agentDetailModal={agentDetailModal}
+              setAgentDetailModal={setAgentDetailModal}
             />
           )}
 
@@ -3165,6 +3281,7 @@ export default function HelpDesk() {
   showConfirmation={showConfirmation} setShowConfirmation={setShowConfirmation}
   confirmationConfig={confirmationConfig}
   printFrameRef={printFrameRef}
+  toggleAssignee={toggleAssignee}
   addCC={addCC}
   updateStatusDirect={updateStatusDirect}
   PRIORITY_COLOR={PRIORITY_COLOR} STATUS_COLOR={STATUS_COLOR} Badge={Badge}
@@ -3242,6 +3359,20 @@ export default function HelpDesk() {
   setTickets={setTickets}
   setProjects={setProjects}
 />
+      {agentDetailModal?.show && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }}>
+          <div style={{ background: "#faf8f4", borderRadius: 12, width: 360, padding: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#0f172a" }}>🟦 {agentDetailModal.user?.name} — On Ticket</h3>
+              <button onClick={() => setAgentDetailModal({ show: false, user: null })} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#94a3b8" }}>×</button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 13 }}>
+              <div style={{ padding: 12, background: "#cffafe", borderRadius: 8 }}><span style={{ fontWeight: 700, color: "#0e7490" }}>🎫 Ticket: </span><span style={{ color: "#0e7490" }}>{agentDetailModal.user?.currentTicketId || "N/A"}</span></div>
+              <div style={{ padding: 12, background: "#f0fdf4", borderRadius: 8 }}><span style={{ fontWeight: 700, color: "#15803d" }}>📍 Location: </span><span style={{ color: "#15803d" }}>{agentDetailModal.user?.currentLocation || "N/A"}</span></div>
+            </div>
+          </div>
+        </div>
+      )}
       <iframe ref={printFrameRef} style={{ display: "none" }} title="print-frame" />
     </div>
   );

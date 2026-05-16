@@ -1,12 +1,12 @@
 import React from "react";
+import axios from "axios";
 import { Avatar, Badge, FilterableHeader, ProgressBar } from "../components/UIComponents";
 import { PRIORITY_COLOR, STATUS_COLOR, PROJECT_STATUSES, PROJECT_PRIORITIES, iS, sS, bP, bG } from "../constants/constants";
 import { applySort } from "../utils/sortHelpers";
+import { exportJSON } from "../utils/exportHelpers";
+import { PROJECTS_API } from "../constants/api";
 const ALL_PROJ_COLS = ["id","created","title","org","department","assignees","priority","category","status","progress","dueDate"];
 
-/**
- * Project list table with filters, pagination, bulk actions, and row actions.
- */
 export function ProjectsView(props) {
   const {
     projects, users, orgs, categories, currentUser,
@@ -21,20 +21,28 @@ export function ProjectsView(props) {
     updateProjectStatus, deleteProject,
     setSelProject,
     setShowNewProject,
-    handleExport,
+    setProjForm,
+    dashboardOrg,
+    getProgressFromStatus,
+    setConfirmModal,
+    setCustomAlert,
+    setProjects,
+    showProjColExport, setShowProjColExport,
+    projExportCols, setProjExportCols,
+    projExportMode, setProjExportMode,
    } = props;
 
-  const [projSearch, setProjSearch] = React.useState("");
-  const [projFilterStatus, setProjFilterStatus] = React.useState([]);
-  const [projFilterAssignment, setProjFilterAssignment] = React.useState([]);
-  const [projFilterAssignee, setProjFilterAssignee] = React.useState([]);
-  const [projFilterAssigneeSearch, setProjFilterAssigneeSearch] = React.useState("");
-  const [projFilterCategory, setProjFilterCategory] = React.useState("");
-  const [projFilterCategorySearch, setProjFilterCategorySearch] = React.useState("");
-  const [projFilterPriority, setProjFilterPriority] = React.useState("All");
-  const [projExportMode, setProjExportMode] = React.useState("csv");
-  const [projExportCols, setProjExportCols] = React.useState(new Set());
-  const [showProjColExport, setShowProjColExport] = React.useState(false);
+  const {
+    projSearch, setProjSearch,
+    projFilterStatus, setProjFilterStatus,
+    projFilterAssignment, setProjFilterAssignment,
+    projFilterAssignee, setProjFilterAssignee,
+    projFilterAssigneeSearch, setProjFilterAssigneeSearch,
+    projFilterCategory, setProjFilterCategory,
+    projFilterCategorySearch, setProjFilterCategorySearch,
+    projFilterPriority, setProjFilterPriority,
+  } = props;
+
   const [projColDDPos, setProjColDDPos] = React.useState({ top: 0, right: 0 });
   const projExportBtnRef = React.useRef(null);
   const projColBtnRef = React.useRef(null);
@@ -166,9 +174,9 @@ export function ProjectsView(props) {
                     <>
                       <div style={{ position: "fixed", inset: 0, zIndex: 499 }} onClick={() => setShowProjExportDD(false)} />
                       <div style={{ position: "fixed", top: (projExportBtnRef.current?.getBoundingClientRect().bottom || 0) + 4, right: window.innerWidth - (projExportBtnRef.current?.getBoundingClientRect().right || 0), background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 500, minWidth: 160, padding: 8 }}>
-                        <div onClick={() => { setShowProjExportDD(false); setProjExportCols(new Set(ALL_PROJ_COLS)); setShowProjColExport(true); setProjExportMode("csv"); }} style={{ padding: "7px 12px", fontSize: 13, cursor: "pointer", borderRadius: 6, color: "#374151" }}>📄 Export CSV</div>
-                        <div onClick={() => { exportJSON(applySort(filteredProjects, projSort)); setShowProjExportDD(false); }} style={{ padding: "7px 12px", fontSize: 13, cursor: "pointer", borderRadius: 6, color: "#374151" }}>📦 Export JSON</div>
-                        <div onClick={() => { setShowProjExportDD(false); setProjExportCols(new Set(ALL_PROJ_COLS)); setShowProjColExport(true); setProjExportMode("print"); }} style={{ padding: "7px 12px", fontSize: 13, cursor: "pointer", borderRadius: 6, color: "#374151" }}>🖨 Print</div>
+                        <div onClick={() => { setShowProjExportDD(false); setProjExportCols(new Set(ALL_PROJ_COLS)); setProjExportMode("csv"); setShowProjColExport(true); }} style={{ padding: "7px 12px", fontSize: 13, cursor: "pointer", borderRadius: 6, color: "#374151" }}>📄 Export CSV</div>
+                        <div onClick={() => { exportJSON(applySort(filteredProjects, projSort), "projects"); setShowProjExportDD(false); }} style={{ padding: "7px 12px", fontSize: 13, cursor: "pointer", borderRadius: 6, color: "#374151" }}>📦 Export JSON</div>
+                        <div onClick={() => { setShowProjExportDD(false); setProjExportCols(new Set(ALL_PROJ_COLS)); setProjExportMode("print"); setShowProjColExport(true); }} style={{ padding: "7px 12px", fontSize: 13, cursor: "pointer", borderRadius: 6, color: "#374151" }}>🖨 Print</div>
                       </div>
                     </>
                   )}
@@ -188,7 +196,7 @@ export function ProjectsView(props) {
                   </>}
                 </div>
                 {selectedProjIds.size > 0 && <span style={{ fontSize: 12, color: "#3b82f6", fontWeight: 600, background: "#eff6ff", padding: "4px 10px", borderRadius: 99 }}>{selectedProjIds.size} selected</span>}
-                {(currentUser?.role === "Admin" || currentUser?.role === "Manager") && <button onClick={() => { setProjForm({ ...emptyProjectForm, org: dashboardOrg !== "all" ? dashboardOrg : "" }); setShowNewProject(true); }} style={{ ...bP, padding: "7px 13px", fontSize: 13, background: "linear-gradient(135deg,#8b5cf6,#6366f1)" }}>+ New Project</button>}
+                {(currentUser?.role === "Admin" || currentUser?.role === "Manager") && <button onClick={() => { setProjForm({ org: dashboardOrg !== "all" ? dashboardOrg : "", department: "", reportedBy: "", title: "", description: "", assignees: [], priority: "", category: "", status: "Open", location: "", dueDate: "", satsangType: "", progress: 0, customAttrs: {}, webcastId: null }); setShowNewProject(true); }} style={{ ...bP, padding: "7px 13px", fontSize: 13, background: "linear-gradient(135deg,#8b5cf6,#6366f1)" }}>+ New Project</button>}
               </div>
             </div>
             <div style={{ overflowX: "auto", border: "1.5px solid #e2e8f0", borderRadius: 10, overflow: "hidden" }}>

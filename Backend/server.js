@@ -199,7 +199,9 @@ const Project = sequelize.define("Project", {
     startDate: { type: DataTypes.DATEONLY, defaultValue: null },
     dueDate: { type: DataTypes.DATEONLY, defaultValue: null },
     comments: { type: DataTypes.JSON, defaultValue: [] },
-    tasks: { type: DataTypes.JSON, defaultValue: [] }
+    tasks: { type: DataTypes.JSON, defaultValue: [] },
+    closedAt: { type: DataTypes.DATE, defaultValue: null },
+    closedBy: { type: DataTypes.STRING, defaultValue: "" },
 }, { timestamps: true });
 
 // ✅ NEW: Department Model
@@ -1214,31 +1216,101 @@ app.get("/api/stats/agents", async (req, res) => {
 app.get("/api/stats/dashboard", async (req, res) => {
     try {
         const org = req.query.org || "";
-        const cacheKey = `stats:dashboard:${org}`;
+        const dateFrom = req.query.dateFrom || "";
+        const cacheKey = `stats:dashboard:${org}:${dateFrom}`;
         const hit = cacheGet(cacheKey);
         if (hit) return res.json(hit);
 
-        const where = { status: { [Op.ne]: "Bin" } };
-        if (org) where.org = org;
+        const orgClause = org ? "AND org = :org" : "";
+        const dateClause = dateFrom ? "AND createdAt >= :dateFrom" : "";
+        const replacements = { org: org || undefined, dateFrom: dateFrom ? new Date(dateFrom + "T00:00:00") : undefined };
 
         const [priorityRows, categoryRows, dailyRows] = await Promise.all([
             sequelize.query(
-                `SELECT priority, COUNT(*) as cnt FROM Tickets WHERE status != 'Bin' ${org ? "AND org = :org" : ""} GROUP BY priority`,
-                { replacements: { org }, type: sequelize.QueryTypes.SELECT }
+                `SELECT priority, COUNT(*) as cnt FROM Tickets WHERE status != 'Bin' ${orgClause} ${dateClause} GROUP BY priority`,
+                { replacements, type: sequelize.QueryTypes.SELECT }
             ),
             sequelize.query(
-                `SELECT category, COUNT(*) as cnt FROM Tickets WHERE status != 'Bin' ${org ? "AND org = :org" : ""} GROUP BY category`,
-                { replacements: { org }, type: sequelize.QueryTypes.SELECT }
+                `SELECT category, COUNT(*) as cnt FROM Tickets WHERE status != 'Bin' ${orgClause} ${dateClause} GROUP BY category`,
+                { replacements, type: sequelize.QueryTypes.SELECT }
             ),
             sequelize.query(
-                `SELECT DATE(createdAt) as day, COUNT(*) as cnt FROM Tickets WHERE status != 'Bin' AND createdAt >= DATE_SUB(NOW(), INTERVAL 7 DAY) ${org ? "AND org = :org" : ""} GROUP BY DATE(createdAt)`,
-                { replacements: { org }, type: sequelize.QueryTypes.SELECT }
+                `SELECT DATE(createdAt) as day, COUNT(*) as cnt FROM Tickets WHERE status != 'Bin' AND createdAt >= DATE_SUB(NOW(), INTERVAL 7 DAY) ${orgClause} GROUP BY DATE(createdAt)`,
+                { replacements, type: sequelize.QueryTypes.SELECT }
             ),
         ]);
 
-        const result = { priority: priorityRows, category: categoryRows, daily: dailyRows };
+        const [openCount, closedCount, criticalCount, reopenedCount, totalCount, unassignedCount] = await Promise.all([
+            Ticket.count({ where: { status: "Open",   ...(org ? { org } : {}), ...(dateFrom ? { createdAt: { [Op.gte]: new Date(dateFrom + "T00:00:00") } } : {}) } }),
+            Ticket.count({ where: { status: "Closed", ...(org ? { org } : {}), ...(dateFrom ? { createdAt: { [Op.gte]: new Date(dateFrom + "T00:00:00") } } : {}) } }),
+            Ticket.count({ where: { priority: "Critical", status: "Open", ...(org ? { org } : {}), ...(dateFrom ? { createdAt: { [Op.gte]: new Date(dateFrom + "T00:00:00") } } : {}) } }),
+            Ticket.count({ where: { status: "Reopened", ...(org ? { org } : {}), ...(dateFrom ? { createdAt: { [Op.gte]: new Date(dateFrom + "T00:00:00") } } : {}) } }),
+            Ticket.count({ where: { status: { [Op.ne]: "Bin" }, ...(org ? { org } : {}), ...(dateFrom ? { createdAt: { [Op.gte]: new Date(dateFrom + "T00:00:00") } } : {}) } }),
+            Ticket.count({ where: { status: "Open", assignees: { [Op.or]: [null, "[]"] }, ...(org ? { org } : {}), ...(dateFrom ? { createdAt: { [Op.gte]: new Date(dateFrom + "T00:00:00") } } : {}) } }),
+        ]);
+        const result = {
+            priority: priorityRows, category: categoryRows, daily: dailyRows,
+            counts: { open: openCount, closed: closedCount, critical: criticalCount, reopened: reopenedCount, total: totalCount, unassigned: unassignedCount }
+        };
         cacheSet(cacheKey, result, CACHE_TTL.stats);
         res.json(result);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get("/api/stats/dashboard", async (req, res) => {
+    try {
+        const org      = req.query.org      || "";
+        const dateFrom = req.query.dateFrom || "";
+
+        const orgClause      = org      ? `AND t.org = ${sequelize.escape(org)}` : "";
+        const dateClause     = dateFrom ? `AND t.createdAt >= ${sequelize.escape(dateFrom + "T00:00:00")}` : "";
+        const closedDateClause = dateFrom ? `AND t.createdAt >= ${sequelize.escape(dateFrom + "T00:00:00")}` : "";
+
+        const [byStatus, byPriority, byCategory, daily, totals] = await Promise.all([
+            sequelize.query(
+                `SELECT status, COUNT(*) as cnt FROM Tickets t
+                 WHERE t.status != 'Bin' ${orgClause} ${dateClause}
+                 GROUP BY status`,
+                { type: sequelize.QueryTypes.SELECT }
+            ),
+            sequelize.query(
+                `SELECT priority, COUNT(*) as cnt FROM Tickets t
+                 WHERE t.status != 'Bin' ${orgClause} ${dateClause}
+                 GROUP BY priority`,
+                { type: sequelize.QueryTypes.SELECT }
+            ),
+            sequelize.query(
+                `SELECT category, COUNT(*) as cnt FROM Tickets t
+                 WHERE t.status != 'Bin' ${orgClause} ${dateClause}
+                 GROUP BY category ORDER BY cnt DESC LIMIT 20`,
+                { type: sequelize.QueryTypes.SELECT }
+            ),
+            sequelize.query(
+                `SELECT DATE(createdAt) as day, COUNT(*) as cnt FROM Tickets t
+                 WHERE t.status != 'Bin' ${orgClause}
+                 AND t.createdAt >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                 GROUP BY day ORDER BY day`,
+                { type: sequelize.QueryTypes.SELECT }
+            ),
+            sequelize.query(
+                `SELECT
+                   COUNT(*) as total,
+                   SUM(CASE WHEN priority='Critical' AND status='Open' THEN 1 ELSE 0 END) as critical
+                 FROM Tickets t WHERE t.status != 'Bin' ${orgClause} ${dateClause}`,
+                { type: sequelize.QueryTypes.SELECT }
+            ),
+        ]);
+
+        const totalRow = totals[0] || {};
+        res.json({
+            byStatus,
+            byPriority,
+            category: byCategory,
+            daily,
+            total:    Number(totalRow.total)    || 0,
+            critical: Number(totalRow.critical) || 0,
+            reopened: 0,
+        });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -1251,24 +1323,28 @@ app.get("/api/tickets/paginated", async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 50;
         const offset = (page - 1) * limit;
-        const search = req.query.search || "";
-        const status = req.query.status || "";
-        const priority = req.query.priority || "";
-        const org = req.query.org || "";
-
-        const category = req.query.category || "";
-        const assignee = req.query.assignee || "";
+        const search    = req.query.search    || "";
+        const status    = req.query.status    || "";
+        const priority  = req.query.priority  || "";
+        const org       = req.query.org       || "";
+        const category  = req.query.category  || "";
+        const assignee  = req.query.assignee  || "";
+        const dateFrom  = req.query.dateFrom  || "";
+        const dateTo    = req.query.dateTo    || "";
+        const dateField = ["createdAt","closedAt","updatedAt","dueDate"].includes(req.query.dateField)
+                          ? req.query.dateField : "createdAt";
 
         const where = {};
-        if (status) where.status = status;
+        if (status)   { where.status   = status;   }
+        else          { where.status   = { [Op.ne]: "Bin" }; }
         if (priority) where.priority = priority;
-        if (org) where.org = org;
+        if (org)      where.org      = org;
         if (category) where.category = category;
         if (search) {
             where[Op.or] = [
                 { summary: { [Op.like]: `%${search}%` } },
-                { id: { [Op.like]: `%${search}%` } },
-                { org: { [Op.like]: `%${search}%` } },
+                { id:      { [Op.like]: `%${search}%` } },
+                { org:     { [Op.like]: `%${search}%` } },
             ];
         }
         if (assignee) {
@@ -1276,17 +1352,40 @@ app.get("/api/tickets/paginated", async (req, res) => {
                 sequelize.literal(`JSON_SEARCH(assignees, 'one', ${sequelize.escape(assignee)}, NULL, '$[*].name') IS NOT NULL`)
             ];
         }
-        if (assignee) {
-            where[Op.and] = where[Op.and] || [];
-            where[Op.and].push(
-                sequelize.literal(`JSON_SEARCH(assignees, 'one', ${sequelize.escape(assignee)}, NULL, '$[*].name') IS NOT NULL`)
-            );
+        if (dateFrom || dateTo) {
+            where[dateField] = {};
+            if (dateFrom) where[dateField][Op.gte] = new Date(dateFrom + "T00:00:00");
+            if (dateTo)   where[dateField][Op.lte] = new Date(dateTo   + "T23:59:59");
         }
+
+        // Past due filter
+        if (req.query.pastdue === "1") {
+            where.dueDate = { [Op.lt]: new Date() };
+            if (!where.status || where.status === "Open") where.status = "Open";
+        }
+
+        // Unassigned filter
+        if (req.query.unassigned === "1") {
+            where[Op.and] = [...(where[Op.and] || []),
+                sequelize.literal(`JSON_LENGTH(assignees) = 0`)
+            ];
+        }
+
+        // Has vendor filter
+        if (req.query.hasVendor === "1") {
+            where[Op.and] = [...(where[Op.and] || []),
+                sequelize.literal(`vendor IS NOT NULL AND vendor != 'null' AND vendor != ''`)
+            ];
+        }
+
+        const ALLOWED_SORT = ["createdAt","updatedAt","summary","org","priority","category","status","id"];
+        const sortField = ALLOWED_SORT.includes(req.query.sortField) ? req.query.sortField : "createdAt";
+        const sortDir = req.query.sortDir === "asc" ? "ASC" : "DESC";
 
         const { count, rows } = await Ticket.findAndCountAll({
             where,
             attributes: { exclude: ["image", "timeline", "comments", "description"] },
-            order: [["createdAt", "DESC"]],
+            order: [["createdAt", sortDir]],
             limit,
             offset,
         });
@@ -1298,6 +1397,58 @@ app.get("/api/tickets/paginated", async (req, res) => {
             totalPages: Math.ceil(count / limit),
         };
         cacheSet(cacheKey, result, CACHE_TTL.paginated);
+        res.json(result);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── REPORT ENDPOINT — lean columns, single query, longer cache ───────────────
+app.get("/api/tickets/report", async (req, res) => {
+    try {
+        const cacheKey = "report:" + JSON.stringify(req.query);
+        const hit = cacheGet(cacheKey);
+        if (hit) return res.json(hit);
+
+        const status    = req.query.status    || "";
+        const priority  = req.query.priority  || "";
+        const org       = req.query.org       || "";
+        const category  = req.query.category  || "";
+        const assignee  = req.query.assignee  || "";
+        const dateFrom  = req.query.dateFrom  || "";
+        const dateTo    = req.query.dateTo    || "";
+        const dateField = ["createdAt","closedAt","updatedAt","dueDate"].includes(req.query.dateField)
+                          ? req.query.dateField : "createdAt";
+
+        const where = {};
+        if (status)   { where.status = status; }
+        else          { where.status = { [Op.ne]: "Bin" }; }
+        if (priority) where.priority = priority;
+        if (org)      where.org      = org;
+        if (category) where.category = category;
+        if (assignee) {
+            where[Op.and] = [
+                sequelize.literal(`JSON_SEARCH(assignees, 'one', ${sequelize.escape(assignee)}, NULL, '$[*].name') IS NOT NULL`)
+            ];
+        }
+        if (dateFrom || dateTo) {
+            where[dateField] = {};
+            if (dateFrom) where[dateField][Op.gte] = new Date(dateFrom + "T00:00:00");
+            if (dateTo)   where[dateField][Op.lte] = new Date(dateTo   + "T23:59:59");
+        }
+
+        // Only fetch columns reports actually display — skip image/timeline/comments/description/cc/customAttrs/vendor
+        const rows = await Ticket.findAll({
+            where,
+            attributes: [
+                "id","summary","status","priority","category","org",
+                "department","contact","reportedBy","assignees","location",
+                "createdAt","updatedAt","dueDate","closedAt",
+            ],
+            order: [["createdAt", "DESC"]],
+            raw: true,
+        });
+
+        const result = { tickets: rows, total: rows.length };
+        cacheSet(cacheKey, result, CACHE_TTL.report);
         res.json(result);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -1478,14 +1629,16 @@ app.get("/api/all-data", async (req, res) => {
     try {
         const hit = cacheGet("alldata");
         if (hit) return res.json(hit);
-        const [users, orgs, categories, customAttrs, satsangs, departments, locations, vendors] = await Promise.all([
+        const [users, orgs, categories, customAttrs, satsangs, departments, locations, vendors, projects] = await Promise.all([
         User.findAll(), Org.findAll(), Category.findAll(), CustomAttr.findAll(),
-        Satsang.findAll(), Department.findAll(), Location.findAll(), Vendor.findAll()
+        Satsang.findAll(), Department.findAll(), Location.findAll(), Vendor.findAll(),
+        Project.findAll({ order: [['createdAt', 'DESC']] })
         ]);
         const result = {
             users: users.map(fmt), orgs: orgs.map(fmt), categories: categories.map(fmt),
             customAttrs: customAttrs.map(fmt), satsangs: satsangs.map(fmt),
             departments: departments.map(fmt), locations: locations.map(fmt), vendors: vendors.map(fmt),
+            projects: projects.map(fmt),
         };
         cacheSet("alldata", result, CACHE_TTL.alldata);
         res.json(result);
@@ -1852,6 +2005,16 @@ async function migrateWebcastsOnStartup() {
 const PORT = process.env.PORT || 5000;
 sequelize.sync({ alter: true }).then(async () => {
     console.log("✅ MySQL Synced & Connected");
+    try {
+        await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_tkt_status      ON Tickets(status)`);
+        await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_tkt_priority    ON Tickets(priority)`);
+        await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_tkt_org         ON Tickets(org)`);
+        await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_tkt_category    ON Tickets(category)`);
+        await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_tkt_createdAt   ON Tickets(createdAt)`);
+        await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_tkt_closedAt    ON Tickets(closedAt)`);
+        await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_tkt_status_cre  ON Tickets(status, createdAt)`);
+        console.log("✅ Ticket indexes ensured");
+    } catch (e) { console.warn("⚠️ Index creation warning:", e.message); }
 
     // Data Migration: Normalize user statuses
     try {

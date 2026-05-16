@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import axios from "axios";
-import { USERS_API, BASE_URL } from "../constants/api";
+import { USERS_API, BASE_URL, PROJECTS_API } from "../constants/api";
 import { saveSession, clearSession } from "../utils/session";
 /**
  * Project CRUD, department management, and status-change handlers.
@@ -10,13 +10,15 @@ export function useProjectHandlers(ctx) {
     projects, setProjects,
     orgs, users, categories, currentUser,
     projForm, setProjForm,
-    setSelProject,
+    selProject, setSelProject,
     setShowNewProject, setShowProjAssigneeDD,
-    setCustomAlert,
+    setCustomAlert, setConfirmModal,
     addDailyNotif,
     departments, setDepartments,
     newDept, setNewDept,
   } = ctx;
+
+  const emptyProjectForm = { org: "", department: "", reportedBy: "", title: "", description: "", assignees: [], priority: "", category: "", status: "Open", location: "", dueDate: "", satsangType: "", progress: 0, customAttrs: {}, webcastId: null };
 
   const [editingLocationId, setEditingLocationId] = useState(null);
   const [editingLocationName, setEditingLocationName] = useState("");
@@ -116,12 +118,19 @@ export function useProjectHandlers(ctx) {
     }
      try {
       const nowISO = new Date().toISOString();
-      const timelineEvent = { action: `Status changed to ${status}`, by: currentUser.name, date: nowISO, note: status === "Closed" ? `Closed by: ${closedByName}` : "" };
-      const updated = { ...p, status, updated: nowISO, ...(status === "Closed" ? { closedBy: closedByName } : {}), timeline: [...(p.timeline || []), timelineEvent] };
-      await axios.put(`${PROJECTS_API}/${id}`, updated);
-      setProjects(prev => prev.map(x => x.id === id ? { ...updated, updated: new Date(nowISO) } : x));
-      if (selProject?.id === id) setSelProject(s => ({ ...updated, updated: new Date(nowISO) }));
-    } catch (e) { setCustomAlert({ show: true, message: "Failed to update project status", type: "error" }); }
+      // Only send fields the Project model has — no closedBy/timeline (not in schema)
+      const payload = {
+        status,
+        ...(status === "Closed" ? { closedAt: nowISO } : {}),
+        ...(status === "Open"   ? { closedAt: null }   : {}),
+      };
+      await axios.put(`${PROJECTS_API}/${id}`, payload);
+      const updatedLocal = { ...p, ...payload, updated: new Date(nowISO) };
+      setProjects(prev => prev.map(x => x.id === id ? updatedLocal : x));
+      if (selProject?.id === id) setSelProject(updatedLocal);
+    } catch (e) {
+      setCustomAlert({ show: true, message: "Failed to update project status: " + (e.response?.data?.error || e.message), type: "error" });
+    }
   };
 
   const deleteProject = async (id) => {

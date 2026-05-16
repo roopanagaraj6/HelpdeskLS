@@ -1,8 +1,10 @@
 import React, { useState } from "react";
+import axios from "axios";
 import { SmartChart, HorizontalBarChart } from "../components/Charts";
 import { Avatar } from "../components/UIComponents";
 import { PRIORITIES, PROJECT_PRIORITIES, STATUSES, PROJECT_STATUSES } from "../constants/constants";
 import { exportCSV, exportJSON, exportPrint } from "../utils/exportHelpers";
+import { BASE_URL } from "../constants/api";
 
 /**
  * Report builder — filters, column picker, table, and chart output.
@@ -24,6 +26,8 @@ export function ReportsView(props) {
   const [saveReportDialogOpen, setSaveReportDialogOpen] = useState(false);
   const [reportCategorySearch, setReportCategorySearch] = useState("");
   const [reportAssigneeSearch, setReportAssigneeSearch] = useState("");
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportLoadingMsg, setReportLoadingMsg] = useState("");
 
   const prbr = projects || [];
   const fbr = tickets || [];
@@ -122,43 +126,78 @@ export function ReportsView(props) {
               return row[key] || "—";
             };
 
+            // Build query params from active filters — only pass what user actually set
+            const buildParams = (f) => {
+              const p = new URLSearchParams();
+              if (f.status.length === 1 && f.status[0])     p.set("status",    f.status[0]);
+              if (f.priority.length === 1 && f.priority[0]) p.set("priority",  f.priority[0]);
+              if (f.org && f.org !== "all")                  p.set("org",       f.org);
+              if (f.category.length === 1 && f.category[0]) p.set("category",  f.category[0]);
+              if (f.assignee && f.assignee.trim())           p.set("assignee",  f.assignee.trim());
+              if (f.dateFrom)                                p.set("dateFrom",  f.dateFrom);
+              if (f.dateTo)                                  p.set("dateTo",    f.dateTo);
+              if (f.dateFrom || f.dateTo)
+                p.set("dateField", f.status.length === 1 && f.status[0] === "Closed" ? "closedAt" : "createdAt");
+              return p.toString();
+            };
+
+            // Fetch only the rows matching current filters from DB
+            const fetchFiltered = async (f, onCount) => {
+              const params = buildParams(f);
+              const res = await axios.get(`${BASE_URL}/tickets/report?${params}`);
+              const tickets = res.data.tickets || [];
+              if (onCount) onCount(tickets.length);
+              return tickets.map(t => ({
+                ...t,
+                created: new Date(t.createdAt || t.created),
+                updated: new Date(t.updatedAt || t.updated),
+              }));
+            };
+
             const runReport = async () => {
-              let fullSource = sourceData;
-              if (reportFilters.dataSource === "tickets") {
-                try {
-                  const res = await axios.get(`${BASE_URL}/tickets/paginated?limit=10000&page=1`);
-                  fullSource = (res.data.tickets || []).map(t => ({
-                    ...t,
-                    created: new Date(t.createdAt || t.created),
-                    updated: new Date(t.updatedAt || t.updated),
-                  }));
-                } catch (_) {}
+              setReportLoading(true);
+              setReportPreview([]);
+              setReportLoadingMsg("Counting records…");
+              try {
+                let result;
+                if (reportFilters.dataSource === "tickets") {
+                  const rows = await fetchFiltered(reportFilters, (total) =>
+                    setReportLoadingMsg(`Fetching ${total.toLocaleString()} tickets…`)
+                  );
+                  // server filtered by status/priority/org/category/date already
+                  // only re-filter client-side if multi-value arrays used (UI currently single-select, future-proof)
+                  result = (reportFilters.status.length > 1 || reportFilters.priority.length > 1)
+                    ? applyFilters(rows)
+                    : rows.filter(r => r.status !== "Bin");
+                } else {
+                  result = applyFilters(prbr);
+                }
+                setReportPreview(result);
+              } catch (e) {
+                alert("Failed to run report. Check connection.");
+              } finally {
+                setReportLoading(false);
+                setReportLoadingMsg("");
               }
-              const result = applyFilters(fullSource);
-              setReportPreview(result);
             };
 
             const saveReport = () => {
               if (!reportName.trim()) { alert("Enter a report name"); return; }
-              const report = {
-                id: Date.now(),
-                name: reportName.trim(),
-                createdAt: new Date().toISOString(),
-                filters: { ...reportFilters },
-                rowCount: reportPreview.length,
-              };
+              const name = reportName.trim();
               axios.post(`${BASE_URL}/saved-reports`, {
-                name: reportName.trim(),
+                name,
                 filters: { ...reportFilters },
                 rowCount: reportPreview.length,
                 savedBy: currentUser?.name || "Unknown",
               })
-                .then(r => setSavedReports(prev => [r.data, ...prev]))
+                .then(r => {
+                  setSavedReports(prev => [r.data, ...prev]);
+                  setReportName("");
+                  setSaveReportDialogOpen(false);
+                  setReportBuilderOpen(false);
+                  alert(`Report "${name}" saved.`);
+                })
                 .catch(() => alert("Failed to save report"));
-              setReportName("");
-              setSaveReportDialogOpen(false);
-              setReportBuilderOpen(false);
-              alert(`Report "${report.name}" saved.`);
             };
 
             const downloadReport = async (reportOrLive, label) => {
@@ -166,20 +205,17 @@ export function ReportsView(props) {
               if (reportOrLive === "live") {
                 data = reportPreview;
               } else {
-                // Fetch ALL tickets from server before applying filters
-                let allTickets = tickets;
-                if (reportFilters.dataSource === "tickets") {
+                // saved report card "⬇ CSV" — re-fetch with that report's filters
+                const f = reportOrLive?.filters || reportFilters;
+                if (f.dataSource === "tickets") {
                   try {
-                    const res = await axios.get(`${BASE_URL}/tickets/paginated?limit=10000&page=1`);
-                    allTickets = (res.data.tickets || []).map(t => ({
-                      ...t,
-                      created: new Date(t.createdAt || t.created),
-                      updated: new Date(t.updatedAt || t.updated),
-                    }));
-                  } catch (_) {}
+                    data = await fetchFiltered(f);
+                    if (f.status.length > 1 || f.priority.length > 1) data = applyFilters(data);
+                    else data = data.filter(r => r.status !== "Bin");
+                  } catch (_) { data = []; }
+                } else {
+                  data = applyFilters(prbr);
                 }
-                const fullSourceData = reportFilters.dataSource === "projects" ? projects : allTickets;
-                data = applyFilters(fullSourceData);
               }
               const cols = reportFilters.columns.length ? reportFilters.columns : availableCols.map(c => c.key);
               const headers = cols.map(k => availableCols.find(c => c.key === k)?.label || k);
@@ -197,11 +233,32 @@ export function ReportsView(props) {
                 .catch(() => alert("Failed to delete report"));
             };
 
-            const loadReport = (r) => {
-              setReportFilters({ ...r.filters });
-              const result = applyFilters(reportFilters.dataSource === "projects" ? projects : tickets);
-              setReportPreview(result);
+            const loadReport = async (r) => {
+              const f = { ...r.filters };
+              setReportFilters(f);
               setReportBuilderOpen(true);
+              setReportLoading(true);
+              setReportPreview([]);
+              setReportLoadingMsg("Loading saved report…");
+              try {
+                let result;
+                if (f.dataSource === "tickets") {
+                  const rows = await fetchFiltered(f, (total) =>
+                    setReportLoadingMsg(`Fetching ${total.toLocaleString()} tickets…`)
+                  );
+                  result = (f.status.length > 1 || f.priority.length > 1)
+                    ? applyFilters(rows)
+                    : rows.filter(r => r.status !== "Bin");
+                } else {
+                  result = applyFilters(prbr);
+                }
+                setReportPreview(result);
+              } catch (_) {
+                alert("Failed to load report.");
+              } finally {
+                setReportLoading(false);
+                setReportLoadingMsg("");
+              }
             };
 
             const btn = (label, onClick, color = "#3b82f6", ghost = false) => (
@@ -274,8 +331,8 @@ export function ReportsView(props) {
                       </div>
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                        {savedReports.map(r => (
-                          <div key={r.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+                        {savedReports.map((r, i) => (
+                          <div key={r.id} className="rpt-row-anim" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, boxShadow: "0 1px 4px rgba(0,0,0,0.04)", animationDelay: `${i * 40}ms` }}>
                             <div>
                               <div style={{ fontWeight: 600, fontSize: 14, color: "#0f172a" }}>{r.name}</div>
                               <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
@@ -408,10 +465,49 @@ export function ReportsView(props) {
                     </div>
 
                     {/* Actions */}
-                    <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
-                      {btn("▶ Run Report", runReport)}
-                      {reportPreview.length > 0 && btn("⬇ Export CSV", () => downloadReport("live", reportName || "report"), "#10b981")}
+                    <style>{`
+                      @keyframes rpt-spin { to { transform: rotate(360deg); } }
+                      @keyframes rpt-fade-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+                      @keyframes rpt-row-in { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:translateX(0); } }
+                      @keyframes rpt-pulse-bar { 0%,100%{opacity:.4} 50%{opacity:1} }
+                      .rpt-row-anim { animation: rpt-row-in 0.22s ease both; }
+                      .rpt-results-wrap { animation: rpt-fade-in 0.28s ease both; }
+                      @keyframes tkt-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+                      @keyframes tkt-row-in { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+                      .tkt-row { animation: tkt-row-in 0.18s ease both; }
+                    `}</style>
+
+                    <div style={{ display: "flex", gap: 10, marginBottom: 20, alignItems: "center" }}>
+                      <button
+                        onClick={runReport}
+                        disabled={reportLoading}
+                        style={{
+                          padding: "7px 18px", borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: reportLoading ? "not-allowed" : "pointer",
+                          background: reportLoading ? "#93c5fd" : "#3b82f6", color: "#fff", border: "none",
+                          display: "flex", alignItems: "center", gap: 8,
+                          transition: "background 0.2s",
+                        }}
+                      >
+                        {reportLoading
+                          ? <span style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "rpt-spin 0.7s linear infinite" }} />
+                          : "▶"}
+                        {reportLoading ? reportLoadingMsg : "Run Report"}
+                      </button>
+                      {reportPreview.length > 0 && !reportLoading && btn("⬇ Export CSV", () => downloadReport("live", reportName || "report"), "#10b981")}
                     </div>
+
+                    {reportLoading && (
+                      <div style={{ marginBottom: 20 }}>
+                        <div style={{ height: 4, borderRadius: 4, background: "#e2e8f0", overflow: "hidden" }}>
+                          <div style={{
+                            height: "100%", width: "60%", borderRadius: 4, background: "#3b82f6",
+                            animation: "rpt-pulse-bar 1.1s ease-in-out infinite",
+                            transformOrigin: "left",
+                          }} />
+                        </div>
+                        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 6 }}>{reportLoadingMsg}</div>
+                      </div>
+                    )}
                     
                     {saveReportDialogOpen && (
                       <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 3000 }}>
@@ -429,7 +525,7 @@ export function ReportsView(props) {
 
                     {/* Preview */}
                     {reportPreview.length > 0 && (
-                      <div>
+                      <div className="rpt-results-wrap">
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                           <span style={{ fontSize: 13, fontWeight: 600, color: "#334155" }}>{reportPreview.length} rows</span>
                           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -449,7 +545,7 @@ export function ReportsView(props) {
                             </thead>
                             <tbody>
                               {reportPreview.slice(0, 100).map((row, i) => (
-                                <tr key={row.id || i} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                                <tr key={row.id || i} className="rpt-row-anim" style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa", animationDelay: `${Math.min(i * 12, 300)}ms` }}>
                                   {activeCols.map(k => (
                                     <td key={k} style={{ padding: "8px 12px", color: "#334155", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                       {getCellValue(row, k)}

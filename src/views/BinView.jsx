@@ -5,6 +5,7 @@ export function BinView(props) {
     tickets, projects,
     restoreTicket, restoreProject,
     permanentDeleteTicket, permanentDeleteProject,
+    setConfirmModal, setCustomAlert,
   } = props;
 
   return (
@@ -22,7 +23,15 @@ export function BinView(props) {
             <span style={{ fontWeight: 600 }}>{t.id}</span>
             <span style={{ color: "#64748b", flex: 1, margin: "0 12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title || t.summary}</span>
             <button onClick={() => restoreTicket(t.id)} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6, border: "none", background: "#22c55e", color: "#fff", cursor: "pointer", fontWeight: 600, marginRight: 6 }}>Restore</button>
-            <button onClick={() => permanentDeleteTicket(t.id)} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6, border: "none", background: "#ef4444", color: "#fff", cursor: "pointer", fontWeight: 600 }}>Delete</button>
+            <button onClick={() => setConfirmModal({
+              show: true,
+              title: "Permanently Delete Ticket?",
+              message: `Delete "${t.summary || t.id}" permanently? This cannot be undone.`,
+              confirmLabel: "Delete Forever",
+              confirmDanger: true,
+              onConfirm: () => { permanentDeleteTicket(t.id); setConfirmModal({ show: false }); },
+              onCancel: () => setConfirmModal({ show: false }),
+            })} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6, border: "none", background: "#ef4444", color: "#fff", cursor: "pointer", fontWeight: 600 }}>Delete</button>
           </div>
         ))}
       </div>
@@ -43,7 +52,15 @@ export function BinView(props) {
               </div>
               <div style={{ display: "flex", gap: 6, marginLeft: 12 }}>
                 <button onClick={() => restoreProject(p.id)} style={{ padding: "6px 12px", background: "#22c55e", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>Restore</button>
-                <button onClick={() => permanentDeleteProject(p.id)} style={{ padding: "6px 12px", background: "#ef4444", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>Delete Now</button>
+                <button onClick={() => setConfirmModal({
+                  show: true,
+                  title: "Permanently Delete Project?",
+                  message: `Delete "${p.title || p.id}" permanently? This cannot be undone.`,
+                  confirmLabel: "Delete Forever",
+                  confirmDanger: true,
+                  onConfirm: () => { permanentDeleteProject(p.id); setConfirmModal({ show: false }); },
+                  onCancel: () => setConfirmModal({ show: false }),
+                })} style={{ padding: "6px 12px", background: "#ef4444", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>Delete Now</button>
               </div>
             </div>
           );

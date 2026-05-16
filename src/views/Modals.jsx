@@ -100,7 +100,7 @@ export function Modals(props) {
     // remark/close
     showRemarkModal, setShowRemarkModal,
     closingTicketId, ticketRemark, setTicketRemark,
-    pendingTicketStatus, closedBy, closedDate, minutes,
+    pendingTicketStatus, setPendingTicketStatus, closedBy, closedDate, minutes,
     updateStatus,
 
     // attr layout
@@ -167,6 +167,7 @@ export function Modals(props) {
     timelineTab, setTimelineTab,
     closeTicketWithRemark,
     compressImage,
+    toggleAssignee,
     showToast,
     addDailyNotif,
     setCustomAlert,

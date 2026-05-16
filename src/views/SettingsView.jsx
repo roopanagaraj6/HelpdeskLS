@@ -48,6 +48,7 @@ export function SettingsView(props) {
     handleProfileUpdate, handlePasswordChange,
     setConfirmModal,
     setCustomAlert,
+    agentDetailModal, setAgentDetailModal,
     setProjects,
     PROJECTS_API,
     tickets,

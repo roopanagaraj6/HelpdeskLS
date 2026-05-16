@@ -1,7 +1,11 @@
 import React from "react";
+import axios from "axios";
+import { AlertsView } from "./AlertsView";
 import { Avatar, Badge, FilterableHeader } from "../components/UIComponents";
 import { PRIORITY_COLOR, STATUS_COLOR, STATUSES, iS, sS, bP, bG } from "../constants/constants";
 import { applySort } from "../utils/sortHelpers";
+import { exportJSON } from "../utils/exportHelpers";
+import { BASE_URL, TICKETS_API } from "../constants/api";
 
 /**
  * Ticket list table with filters, pagination, bulk actions, and row actions.
@@ -50,11 +54,22 @@ export const TicketsView = React.memo(function TicketsView(props) {
   const ticketExportBtnRef = React.useRef(null);
   const ticketColBtnRef = React.useRef(null);
   const [ticketColDDPos, setTicketColDDPos] = React.useState({ top: 0, right: 0 });
-  const [showTicketColExport, setShowTicketColExport] = React.useState(false);
-  const [ticketExportMode, setTicketExportMode] = React.useState("csv");
-  const [ticketExportCols, setTicketExportCols] = React.useState(new Set());
+  const isLoading = props.ticketsLoading || false;
+  const {
+    showTicketColExport, setShowTicketColExport,
+    ticketExportCols, setTicketExportCols,
+    ticketExportMode, setTicketExportMode,
+    setForm, emptyForm, dashboardOrg,
+    setConfirmModal, setCustomAlert, setTickets, isTrueWebcast,
+    alertNotifs, inboxUnread,
+    acceptInboxForwardRequest, rejectInboxForwardRequest,
+  } = props;
 
   const allSortedTickets = filtered || [];
+  const skeletonStyle = {
+    height: 13, borderRadius: 4, background: "linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%)",
+    backgroundSize: "200% 100%", animation: "tkt-shimmer 1.4s ease-in-out infinite",
+  };
   const currentPage = ticketPage || 1;
   const setCurrentPage = setTicketPage;
   const currentTickets = allSortedTickets; // server returns correct page already
@@ -184,7 +199,7 @@ export const TicketsView = React.memo(function TicketsView(props) {
                       <div style={{ position: "fixed", inset: 0, zIndex: 499 }} onClick={() => setShowTicketExport(false)} />
                       <div style={{ position: "fixed", top: (ticketExportBtnRef.current?.getBoundingClientRect().bottom || 0) + 4, right: window.innerWidth - (ticketExportBtnRef.current?.getBoundingClientRect().right || 0), background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 500, minWidth: 160, padding: 8 }}>
                         <div onClick={() => { setShowTicketExport(false); setTicketExportCols(new Set(ALL_TICKET_COLS)); setShowTicketColExport(true); setTicketExportMode("csv"); }} style={{ padding: "7px 12px", fontSize: 13, cursor: "pointer", borderRadius: 6, color: "#374151" }}>📄 Export CSV</div>
-                        <div onClick={() => { exportJSON(allSortedTickets); setShowTicketExport(false); }} style={{ padding: "7px 12px", fontSize: 13, cursor: "pointer", borderRadius: 6, color: "#374151" }}>📦 Export JSON</div>
+                        <div onClick={() => { exportJSON(allSortedTickets, "tickets"); setShowTicketExport(false); }} style={{ padding: "7px 12px", fontSize: 13, cursor: "pointer", borderRadius: 6, color: "#374151" }}>📦 Export JSON</div>
                         <div onClick={() => { setShowTicketExport(false); setTicketExportCols(new Set(ALL_TICKET_COLS)); setShowTicketColExport(true); setTicketExportMode("print"); }} style={{ padding: "7px 12px", fontSize: 13, cursor: "pointer", borderRadius: 6, color: "#374151" }}>🖨 Print</div>
                       </div>
                     </>
@@ -344,20 +359,38 @@ export const TicketsView = React.memo(function TicketsView(props) {
                       </th>
                     );
                   })()}
-                  {visibleTicketCols.has("id") && <FilterableHeader label="ID" field="id" data={filtered} filters={ticketSort} onFilter={setTicketSort} style={thStyle} />}
-                  {visibleTicketCols.has("created") && <FilterableHeader label="Created" field="created" data={filtered} filters={ticketSort} onFilter={setTicketSort} style={thStyle} />}
-                  {visibleTicketCols.has("summary") && <FilterableHeader label="Summary" field="summary" data={filtered} filters={ticketSort} onFilter={setTicketSort} style={thStyle} />}
-                  {visibleTicketCols.has("org") && <FilterableHeader label="Org" field="org" data={filtered} filters={ticketSort} onFilter={setTicketSort} style={thStyle} />}
-                  {visibleTicketCols.has("department") && <FilterableHeader label="Dept" field="department" data={filtered} filters={ticketSort} onFilter={setTicketSort} style={thStyle} />}
-                  {visibleTicketCols.has("reportedBy") && <FilterableHeader label="Reported By" field="reportedBy" data={filtered} filters={ticketSort} onFilter={setTicketSort} style={thStyle} />}
-                  {visibleTicketCols.has("assignees") && <FilterableHeader label="Assignees" field="assignees" data={filtered} filters={ticketSort} onFilter={setTicketSort} style={thStyle} />}
-                  {visibleTicketCols.has("priority") && <FilterableHeader label="Priority" field="priority" data={filtered} filters={ticketSort} onFilter={setTicketSort} style={thStyle} />}
-                  {visibleTicketCols.has("category") && <FilterableHeader label="Category" field="category" data={filtered} filters={ticketSort} onFilter={setTicketSort} style={thStyle} />}
-                  {visibleTicketCols.has("status") && <FilterableHeader label="Status" field="status" data={filtered} filters={ticketSort} onFilter={setTicketSort} style={thStyle} />}
+                  {visibleTicketCols.has("id") && <th style={thStyle}>ID</th>}
+                  {visibleTicketCols.has("created") && (
+                    <th style={{ ...thStyle, userSelect: "none", cursor: "pointer", whiteSpace: "nowrap" }}
+                      onClick={() => setTicketSort(s => ({ _sortField: "created", _sortDir: s._sortField === "created" && s._sortDir === "desc" ? "asc" : "desc" }))}>
+                      Created
+                      <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 700, color: ticketSort._sortField === "created" ? "#3b82f6" : "#94a3b8" }}>
+                        {ticketSort._sortField === "created" ? (ticketSort._sortDir === "asc" ? "↑" : "↓") : "↕"}
+                      </span>
+                    </th>
+                  )}
+                  {visibleTicketCols.has("summary") && <th style={thStyle}>Summary</th>}
+                  {visibleTicketCols.has("org") && <th style={thStyle}>Org</th>}
+                  {visibleTicketCols.has("department") && <th style={thStyle}>Dept</th>}
+                  {visibleTicketCols.has("reportedBy") && <th style={thStyle}>Reported By</th>}
+                  {visibleTicketCols.has("assignees") && <th style={thStyle}>Assignees</th>}
+                  {visibleTicketCols.has("priority") && <th style={thStyle}>Priority</th>}
+                  {visibleTicketCols.has("category") && <th style={thStyle}>Category</th>}
+                  {visibleTicketCols.has("status") && <th style={thStyle}>Status</th>}
                   <th style={thStyle}>Action</th>
                 </tr></thead>
-                <tbody>{currentTickets.map(t => (
-                  <tr key={t.id} className="rh" style={{ cursor: "pointer", background: selectedIds.has(t.id) ? "#eff6ff" : "#fff" }}>
+                <tbody>{isLoading ? Array.from({ length: 10 }).map((_, i) => (
+                  <tr key={`skel-${i}`} style={{ background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                    {currentUser?.role === "Admin" && <td style={tdStyle}><div style={{ ...skeletonStyle, width: 16, height: 16, borderRadius: 3 }} /></td>}
+                    {[...visibleTicketCols].map(k => (
+                      <td key={k} style={tdStyle}>
+                        <div style={{ ...skeletonStyle, width: k === "summary" ? "80%" : k === "id" ? 70 : k === "assignees" ? 90 : k === "status" ? 60 : k === "created" ? 80 : "60%", animationDelay: `${i * 60}ms` }} />
+                      </td>
+                    ))}
+                    <td style={tdStyle}><div style={{ ...skeletonStyle, width: 80, animationDelay: `${i * 60}ms` }} /></td>
+                  </tr>
+                )) : currentTickets.map((t, rowIdx) => (
+                  <tr key={t.id} className="rh tkt-row" style={{ cursor: "pointer", background: selectedIds.has(t.id) ? "#eff6ff" : "#fff", animationDelay: `${Math.min(rowIdx * 20, 200)}ms` }}>
                     {/* ✅ Checkboxes only for Admin */}
                     {currentUser?.role === "Admin" && (
                       <td style={tdStyle} onClick={e => e.stopPropagation()}><input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleSel(t.id)} style={{ cursor: "pointer" }} /></td>
@@ -415,79 +448,16 @@ export const TicketsView = React.memo(function TicketsView(props) {
           </div>
           {/* ── Active Alerts: Notifications + Inbox panels ── */}
           {tvFilter === "alerts" ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 20 }}>
-
-              {/* Notifications - 10 days */}
-              <div style={{ background: "#faf8f4", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
-                <div style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 16 }}>🔔</span>
-                  <span style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>Notifications</span>
-                  <span style={{ marginLeft: "auto", fontSize: 12, color: "#94a3b8" }}>Today</span>
-                </div>
-                <div style={{ maxHeight: 260, overflowY: "auto", padding: "8px 0" }}>
-                  {alertNotifs.length === 0 ? (
-                    <div style={{ padding: "24px 16px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>No notifications</div>
-                  ) : alertNotifs.map((n, i) => (
-                    <div key={n.id || i} style={{ padding: "10px 16px", borderBottom: "1px solid #f8fafc", display: "flex", alignItems: "flex-start", gap: 10 }}>
-                      <span style={{ fontSize: 18 }}>{n.icon}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, color: "#1e293b", fontWeight: 500 }}>{n.text}</div>
-                        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
-                          {n.by && <span>{n.by} · </span>}
-                          {new Date(n.time).toLocaleString()}
-                        </div>
-                      </div>
-                      {n.ticketId && (
-                        <div style={{ fontSize: 10, color: "#3b82f6", fontFamily: "monospace", fontWeight: 600, marginTop: 2, cursor: "pointer" }}
-                          onClick={() => handleNotificationClick(n)}>
-                          🎫 {n.ticketId}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Inbox */}
-              <div style={{ background: "#faf8f4", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
-                <div style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 16 }}>✉️</span>
-                  <span style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>Inbox</span>
-                  {inboxUnread > 0 && (
-                    <span style={{ background: "#3b82f6", color: "#fff", borderRadius: 99, fontSize: 10, fontWeight: 700, padding: "1px 7px" }}>{inboxUnread}</span>
-                  )}
-                  <span style={{ marginLeft: "auto", fontSize: 12, color: "#94a3b8" }}>{inboxItems.length} messages</span>
-                </div>
-                <div style={{ maxHeight: 260, overflowY: "auto", padding: "8px 0" }}>
-                  {inboxItems.length === 0 ? (
-                    <div style={{ padding: "24px 16px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>No messages</div>
-                  ) : inboxItems.map((item, i) => (
-                    <div key={item.id || i} style={{ padding: "12px 16px", borderBottom: "1px solid #f8fafc", background: item.read ? "#fff" : "#f0f9ff", borderLeft: item.read ? "none" : "3px solid #3b82f6" }}>
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: 9 }}>
-                        <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>
-                          {item.type === "forward_request" ? "📬" : item.type === "forward_response" ? (item.status === "Approved" ? "✅" : "❌") : item.type === "ticket_assigned" ? "🎫" : "📩"}
-                        </span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: "#0f172a", marginBottom: 3 }}>{item.title}</div>
-                          <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.5, marginBottom: 6 }}>{item.message}</div>
-                          {item.ticketId && <div style={{ fontSize: 10, color: "#3b82f6", fontFamily: "monospace", marginBottom: 6 }}>{item.ticketId}</div>}
-                          {item.type === "forward_request" && !item.resolved && (currentUser?.role === "Admin" || currentUser?.role === "Manager") && (
-                            <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                              <button onClick={() => acceptInboxForwardRequest(item)} style={{ flex: 1, padding: "5px 10px", fontSize: 11, fontWeight: 600, background: "#10b981", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}>✓ Approve</button>
-                              <button onClick={() => rejectInboxForwardRequest(item)} style={{ flex: 1, padding: "5px 10px", fontSize: 11, fontWeight: 600, background: "#ef4444", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}>✕ Reject</button>
-                            </div>
-                          )}
-                          {item.resolved && <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 99, background: item.resolved === "Approved" ? "#dcfce7" : "#fee2e2", color: item.resolved === "Approved" ? "#15803d" : "#991b1b" }}>{item.resolved}</span>}
-                          <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 4 }}>{item.createdAt ? new Date(item.createdAt).toLocaleString() : ""}</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-            </div>
-          ): null}
+            <AlertsView
+              alertNotifs={alertNotifs}
+              inboxItems={inboxItems}
+              inboxUnread={inboxUnread}
+              currentUser={currentUser}
+              handleNotificationClick={handleNotificationClick}
+              acceptInboxForwardRequest={acceptInboxForwardRequest}
+              rejectInboxForwardRequest={rejectInboxForwardRequest}
+            />
+          ) : null}
     </>
   );
 });

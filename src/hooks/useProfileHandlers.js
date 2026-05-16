@@ -1,6 +1,7 @@
 import { useRef, useEffect } from "react";
 import axios from "axios";
 import { USERS_API } from "../constants/api";
+import { saveSession, clearSession } from "../utils/session";
 /**
  * Agent status, lunch break, and activity-tracking handlers.
  */
@@ -17,9 +18,10 @@ export function useProfileHandlers(ctx) {
   // ─── PROFILE HANDLERS (v1) ─────────────────────────────────────────────────
   const saveProfile = async () => {
     try {
-      const up = { ...currentUser, phone: profileForm.phone, name: profileForm.name };
+      const up = { ...currentUser, phone: ctx.profileForm?.phone ?? currentUser.phone, name: ctx.profileForm?.name ?? currentUser.name };
       await axios.put(`${USERS_API}/${currentUser.id}`, up);
-      saveSession(up); setCurrentUser(up); setUsers(users.map(u => u.id === currentUser.id ? up : u)); setEditProfileOpen(false);
+      saveSession(up); setCurrentUser(up); setUsers(users.map(u => u.id === currentUser.id ? up : u));
+      if (ctx.setEditProfileOpen) ctx.setEditProfileOpen(false);
     } catch (err) { setCustomAlert({ show: true, message: "Failed to save profile", type: "error" }); }
   };
   const updateStatusDirect = async (st) => {
@@ -177,7 +179,7 @@ export function useProfileHandlers(ctx) {
       const minutesElapsed = (new Date() - loginTime) / 60000;
 
       // Step 1: Set Idle after 15 min of On Duty — only once
-      if (u.status === "On Duty" && minutesElapsed >= 5) {
+      if (u.status === "On Duty" && minutesElapsed >= 1) {
         const idleUp = { ...u, status: "Idle", idleAt: new Date().toISOString(), _isSystemUpdate: true };
         try {
           await axios.put(`${USERS_API}/${u.id}`, idleUp);

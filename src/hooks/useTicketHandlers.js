@@ -9,6 +9,13 @@ import { exportCSV, exportJSON, exportPrint } from "../utils/exportHelpers";
  * @param {object} ctx  — destructure all needed state + setters from here
  */
 export function useTicketHandlers(ctx) {
+  const getDefaultDueDate = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split("T")[0];
+  };
+  const emptyForm = () => ({ org: "", department: "", contact: "", reportedBy: "", summary: "", description: "", assignees: [], priority: "Standard", category: "", subcategory: "", customAttrs: {}, dueDate: getDefaultDueDate(), satsangType: "", location: "" });
+
   const {
     tickets, setTickets,
     filtered,
@@ -24,9 +31,12 @@ export function useTicketHandlers(ctx) {
     setTicketRemark, setClosedDate, setMinutes,
     setCcInput,
     setDeleteConfirmation,
-    setTicketImage, setTicketImagePreview,
+    ticketImage, setTicketImage, setTicketImagePreview,
     exportFilterType, exportFilterValue, exportFormat, targetTable,
     advancedExportFilters,
+    isTrueWebcast,
+    addDailyNotif,
+    selTicket, setSelTicket: _setSelTicket,
   } = ctx;
   const allSortedTickets = filtered ?? [];
   const currentTickets = allSortedTickets;

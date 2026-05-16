@@ -2,6 +2,34 @@ import React from "react";
 import { SmartChart, DonutChart, HorizontalBarChart } from "../components/Charts";
 import { Avatar, Badge } from "../components/UIComponents";
 import { STATUS_COLOR } from "../constants/constants";
+
+const shimmerStyle = {
+  background: "linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%)",
+  backgroundSize: "200% 100%",
+  animation: "shimmer 1.2s infinite",
+  borderRadius: 10,
+};
+const shimmerKeyframes = `@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }`;
+
+function StatCardSkeleton() {
+  return (
+    <div style={{ background: "#f8fafc", borderRadius: 12, padding: "16px", boxShadow: "0 2px 6px rgba(0,0,0,0.07)", borderLeft: "5px solid #e2e8f0" }}>
+      <div style={{ ...shimmerStyle, height: 14, width: "40%", marginBottom: 10 }} />
+      <div style={{ ...shimmerStyle, height: 32, width: "60%", marginBottom: 8 }} />
+      <div style={{ ...shimmerStyle, height: 10, width: "50%" }} />
+    </div>
+  );
+}
+
+function ChartSkeleton({ height = 300 }) {
+  return (
+    <div style={{ background: "#fff", borderRadius: 12, padding: 18, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", height }}>
+      <div style={{ ...shimmerStyle, height: 14, width: "40%", marginBottom: 16 }} />
+      <div style={{ ...shimmerStyle, height: height - 60, borderRadius: 8 }} />
+    </div>
+  );
+}
+
 /**
  * Dashboard summary cards, charts, and recent-ticket feed.
  * All data is passed as props — no internal state or API calls.
@@ -14,7 +42,7 @@ export function DashboardView(props) {
   statusDist, orgDist, agentDist, monthlyDist,
   dashboardOrg, setDashboardOrg,
   showDashboardOrgDD, setShowDashboardOrgDD,
-  dashboardStats, dashboardData, dashboardDailyData,
+  dashboardStats, dashboardStatsLoading, dashboardData, dashboardDailyData,
   categoryDistFull, dashboardClosingUsersFull,
   catBreakdownExpanded, setCatBreakdownExpanded,
   closuresByPersonExpanded, setClosuresByPersonExpanded,
@@ -25,6 +53,7 @@ export function DashboardView(props) {
 
   return (
     <>
+      <style>{shimmerKeyframes}</style>
       {/* Background Image with Clear Display for Dashboard */}
       <div style={{
               position: "absolute",
@@ -43,9 +72,11 @@ export function DashboardView(props) {
                 <span style={{ fontSize: 14, fontWeight: 900, color: "#1e293b", textTransform: "uppercase", letterSpacing: "0.1em", marginLeft: 2 }}>🎫 TICKETS</span>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 9, marginBottom: 20 }}>
-                {[
+                {dashboardStatsLoading
+                  ? Array.from({ length: (currentUser?.role === "Admin" || currentUser?.role === "Manager") ? 7 : 5 }).map((_, i) => <StatCardSkeleton key={i} />)
+                  : [
                   { label: "Open", value: dashboardStats.open, bg: "#fef3c7", accent: "#f59e0b", icon: "", action: () => { switchView("tickets"); setTvFilter("all"); setFilterStatus(["open"]); setFilterAssignment([]); setPriorityF("All"); } },
-                  ...((currentUser?.role === "Admin" || currentUser?.role === "Manager") ? [{ label: "Unassigned", value: dashboardData.filter(t => (!t.assignees || t.assignees.length === 0) && t.status !== "Closed" && t.status !== "Bin").length, bg: "#f3e8ff", accent: "#a855f7", icon: "", action: () => { switchView("tickets"); setTvFilter("all"); setFilterAssignment(["unassigned"]); setFilterStatus(["open"]); setPriorityF("All"); } }] : []),
+                  ...((currentUser?.role === "Admin" || currentUser?.role === "Manager") ? [{ label: "Unassigned", value: tickets.filter(t =>(!t.assignees || t.assignees.length === 0) && t.status === "Open" &&t.status !== "Bin").length, bg: "#f3e8ff", accent: "#a855f7", icon: "", action: () => { switchView("tickets"); setTvFilter("all"); setFilterAssignment(["unassigned"]); setFilterStatus(["open"]); setPriorityF("All"); } }] : []),
                   { label: "Critical", value: dashboardStats.critical, bg: "#fee2e2", accent: "#ef4444", icon: "", action: () => { switchView("tickets"); setTvFilter("all"); setFilterStatus(["open"]); setPriorityF("Critical"); setFilterAssignment([]); } },
                   { label: "Closed", value: dashboardStats.closed, bg: "#dcfce7", accent: "#22c55e", icon: "", action: () => { switchView("tickets"); setTvFilter("all"); setFilterStatus(["closed"]); setFilterAssignment([]); setPriorityF("All"); } },
                   { label: "Total", value: dashboardStats.total, bg: "#dbeafe", accent: "#3b82f6", icon: "", action: () => { switchView("tickets"); setTvFilter("all"); setStatusF("All"); setPriorityF("All"); } },
@@ -70,8 +101,8 @@ export function DashboardView(props) {
                 <>
                   {/* Row 1: Tickets Over Time + Priority */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-                    <SmartChart title="Daily Ticket count (Over a Week)" data={dashboardDailyData} defaultColor="#3b82f6" />
-                    <SmartChart title="Priority Distribution" data={priorityDist} defaultType="pie" />
+                    {dashboardStatsLoading ? <ChartSkeleton /> : <SmartChart title="Daily Ticket count (Over a Week)" data={dashboardDailyData} defaultColor="#3b82f6" />}
+                    {dashboardStatsLoading ? <ChartSkeleton /> : <SmartChart title="Priority Distribution" data={priorityDist} defaultType="pie" />}
                   </div>
 
                   {/* Row 2: Category Breakdown + Closures by Person */}
@@ -81,14 +112,14 @@ export function DashboardView(props) {
                         <div style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Category Breakdown</div>
                         <button onClick={() => setCatBreakdownExpanded(v => !v)} style={{ fontSize: 11, fontWeight: 600, color: "#3b82f6", background: "none", border: "none", cursor: "pointer", padding: 0 }}>{catBreakdownExpanded ? "Show Less ↑" : "View All ↓"}</button>
                       </div>
-                      <HorizontalBarChart data={catBreakdownExpanded ? categoryDistFull : categoryDistFull.slice(0, 10)} />
+                      {dashboardStatsLoading ? <div style={{ ...shimmerStyle, height: 200, borderRadius: 8 }} /> : <HorizontalBarChart data={catBreakdownExpanded ? categoryDistFull : categoryDistFull.slice(0, 10)} />}
                     </div>
                     <div style={{ background: "#fff", borderRadius: 12, padding: 18, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Closures by Person</div>
                         <button onClick={() => setClosuresByPersonExpanded(v => !v)} style={{ fontSize: 11, fontWeight: 600, color: "#3b82f6", background: "none", border: "none", cursor: "pointer", padding: 0 }}>{closuresByPersonExpanded ? "Show Less ↑" : "View All ↓"}</button>
                       </div>
-                      <HorizontalBarChart data={closuresByPersonExpanded ? dashboardClosingUsersFull : dashboardClosingUsersFull.slice(0, 10)} />
+                      {dashboardStatsLoading ? <div style={{ ...shimmerStyle, height: 200, borderRadius: 8 }} /> : <HorizontalBarChart data={closuresByPersonExpanded ? dashboardClosingUsersFull : dashboardClosingUsersFull.slice(0, 10)} />}
                     </div>
                   </div>
 
