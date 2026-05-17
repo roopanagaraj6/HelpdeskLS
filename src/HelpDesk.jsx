@@ -885,13 +885,11 @@ export default function HelpDesk() {
       }
 
       // load first page only; TicketsView fetches more via paginated endpoint
-      const [ticketRes, countsRes, statsRes] = await Promise.all([
+      const [ticketRes, countsRes] = await Promise.all([
         axios.get(`${BASE_URL}/tickets/paginated?limit=25&page=1`),
-        axios.get(`${BASE_URL}/tickets/counts`),
-        axios.get(`${BASE_URL}/stats/dashboard`),
+        axios.get(`${BASE_URL}/tickets/counts`)
       ]);
       setServerTicketCounts(countsRes.data);
-      if (statsRes.data) setDashboardStatsMap(statsRes.data);
       const allRaw = ticketRes.data.tickets || [];
       const parsedTickets = allRaw.map(t => ({
           ...t,
@@ -1619,7 +1617,6 @@ export default function HelpDesk() {
   const isAgent = currentUser?.role === "Agent" || currentUser?.role === "Viewer";
   const unassigned = dashboardStatsMap.counts?.unassigned ?? 0;
 
-  // Admins/Managers: always use server stats — never fall back to local paginated data
   if (!isAgent && dashboardStatsMap.counts) {
     return {
       total: dashboardStatsMap.counts.total,
@@ -1630,10 +1627,7 @@ export default function HelpDesk() {
       unassigned,
     };
   }
-  // While server stats are still loading, return null so tiles show skeleton
-  if (!isAgent && dashboardStatsLoading) return null;
-  // Fallback to counts API if stats haven't arrived yet
-  if (!isAgent && serverTicketCounts) {
+  if (!isAgent && serverTicketCounts && !dashboardStatsMap.counts && dashboardOrg === "all" && dashboardTimePeriod === "all") {
     const open = serverTicketCounts.byStatus?.find(r => r.status === "Open")?.cnt || 0;
     const closed = serverTicketCounts.byStatus?.find(r => r.status === "Closed")?.cnt || 0;
     return {
@@ -1645,20 +1639,17 @@ export default function HelpDesk() {
       unassigned,
     };
   }
-  // Agents/Viewers: use their own filtered local data
-  if (isAgent) {
-    const base = dashboardData.filter(t => t.assignees?.some(a => a.id === currentUser?.id || a.name === currentUser?.name));
-    return {
-      total: base.filter(x => x.status !== "Bin").length,
-      open: base.filter(x => x.status === "Open").length,
-      closed: base.filter(x => x.status === "Closed").length,
-      critical: base.filter(x => x.priority === "Critical" && x.status === "Open").length,
-      reopened: base.filter(x => (x.timeline || []).some(e => e.action === "Reopened" || (e.action?.includes("Status changed to Open") && (x.timeline||[]).some(prev => prev.action?.includes("Status changed to Closed"))))).length,
-      unassigned,
-    };
-  }
-  return null;
-}, [dashboardData, currentUser, serverTicketCounts, dashboardStatsMap, dashboardStatsLoading, dashboardOrg, dashboardTimePeriod]);
+  let base = dashboardData;
+  if (isAgent) base = base.filter(t => t.assignees?.some(a => a.id === currentUser?.id || a.name === currentUser?.name));
+  return {
+    total: base.filter(x => x.status !== "Bin").length,
+    open: base.filter(x => x.status === "Open").length,
+    closed: base.filter(x => x.status === "Closed").length,
+    critical: base.filter(x => x.priority === "Critical" && x.status === "Open").length,
+    reopened: base.filter(x => (x.timeline || []).some(e => e.action === "Reopened" || (e.action?.includes("Status changed to Open") && (x.timeline||[]).some(prev => prev.action?.includes("Status changed to Closed"))))).length,
+    unassigned,
+  };
+}, [dashboardData, currentUser, serverTicketCounts, dashboardStatsMap, dashboardOrg, dashboardTimePeriod]);
 
   // For dashboard: Agents and Viewers only see stats for projects assigned to them
   const dashboardProjects = useMemo(() => {
@@ -1696,7 +1687,7 @@ export default function HelpDesk() {
 
   const agentStats = useMemo(() => {
     const orgProjects = dashboardOrg === "all" ? prbr : prbr.filter(p => p.org === dashboardOrg);
-    return (Array.isArray(users) ? users : []).map(u => ({
+    return (Array.isArray(users) ? users : []).filter(u => u.active !== false).map(u => ({
       ...u,
       assigned: agentStatsMap.assigned[u.name] || 0,
       closed: agentStatsMap.closed[u.name] || 0,
@@ -1785,7 +1776,7 @@ export default function HelpDesk() {
 }, [dashboardData]);
 
   const dashboardClosingUsers = useMemo(() => {
-    return users.map((u, i) => ({
+    return users.filter(u => u.active !== false).map((u, i) => ({
       label: u.name,
       value: agentStatsMap.closed[u.name] || 0,
       color: PIE_COLORS[i % PIE_COLORS.length]
@@ -1793,7 +1784,7 @@ export default function HelpDesk() {
   }, [agentStatsMap, users]);
 
   const dashboardClosingUsersFull = useMemo(() => {
-    return users.map((u, i) => ({
+    return users.filter(u => u.active !== false).map((u, i) => ({
       label: u.name,
       value: agentStatsMap.closed[u.name] || 0,
       color: PIE_COLORS[i % PIE_COLORS.length]
@@ -1823,7 +1814,7 @@ export default function HelpDesk() {
   const categoryDistAll = categoryDistFull;
   const statusDist = dashboardStatusDist;
   const orgDist = useMemo(() => orgs.map(o => ({ label: o.name, value: dashboardData.filter(t => t.org === o.name && t.status !== "Bin").length, color: "#3b82f6" })).sort((a,b) => b.value - a.value), [dashboardData, orgs]);
-  const agentDist = useMemo(() => users.map((u,i) => ({ label: u.name, value: agentStatsMap.closed[u.name] || 0, color: PIE_COLORS[i % PIE_COLORS.length] })).sort((a,b) => b.value - a.value).slice(0,8), [agentStatsMap, users]);
+  const agentDist = useMemo(() => users.filter(u => u.active !== false).map((u,i) => ({ label: u.name, value: agentStatsMap.closed[u.name] || 0, color: PIE_COLORS[i % PIE_COLORS.length] })).sort((a,b) => b.value - a.value).slice(0,8), [agentStatsMap, users]);
   const monthlyDist = yearlyData;
 
 
