@@ -286,6 +286,29 @@ const SavedReport = sequelize.define("SavedReport", {
 }, { timestamps: true });
 
 // ─── SERIALIZER (Matches your original fmt) ──────────────────────────────────
+
+// --- Scheduled Task Model ---
+const ScheduledTask = sequelize.define("ScheduledTask", {
+    name:        { type: DataTypes.STRING, allowNull: false },
+    summary:     { type: DataTypes.STRING, allowNull: false },
+    description: { type: DataTypes.TEXT, defaultValue: "" },
+    org:         { type: DataTypes.STRING, defaultValue: "" },
+    department:  { type: DataTypes.STRING, defaultValue: "" },
+    priority:    { type: DataTypes.STRING, defaultValue: "Standard" },
+    category:    { type: DataTypes.STRING, defaultValue: "" },
+    assignees:   { type: DataTypes.JSON, defaultValue: [] },
+    location:    { type: DataTypes.STRING, defaultValue: "" },
+    reportedBy:  { type: DataTypes.STRING, defaultValue: "" },
+    frequency:   { type: DataTypes.ENUM("daily","weekly","biweekly","monthly"), defaultValue: "weekly" },
+    dayOfWeek:   { type: DataTypes.INTEGER, defaultValue: 1 },
+    dayOfMonth:  { type: DataTypes.INTEGER, defaultValue: 1 },
+    timeOfDay:   { type: DataTypes.STRING, defaultValue: "09:00" },
+    active:      { type: DataTypes.BOOLEAN, defaultValue: true },
+    lastRunAt:   { type: DataTypes.DATE, defaultValue: null },
+    nextRunAt:   { type: DataTypes.DATE, defaultValue: null },
+    createdBy:   { type: DataTypes.STRING, defaultValue: "" },
+}, { timestamps: true });
+
 const fmt = (doc) => {
     if (!doc) return null;
     const obj = doc.get ? doc.get({ plain: true }) : { ...doc };
@@ -2030,8 +2053,113 @@ sequelize.sync({ alter: true }).then(async () => {
     // Schedule daily cleanup
     setInterval(cleanupOldNotifications, 24 * 60 * 60 * 1000);
 
+    // Run scheduled tasks every minute
+    runScheduledTasks();
+    setInterval(runScheduledTasks, 60 * 1000);
+
     // ✅ NO HARDCODED DEPARTMENTS & LOCATIONS - Only add via frontend!
     // Departments and Locations must be created manually through Settings tabs
+
+
+// --- Scheduled Tasks CRUD ---
+
+function calcNextRun(task, fromDate) {
+    const hhmm = (task.timeOfDay || "09:00").split(":");
+    const hh = parseInt(hhmm[0]); const mm = parseInt(hhmm[1]);
+    const now = fromDate ? new Date(fromDate) : new Date();
+    const next = new Date(now);
+    next.setSeconds(0); next.setMilliseconds(0);
+    if (task.frequency === "daily") {
+        next.setHours(hh, mm, 0, 0);
+        if (next <= now) next.setDate(next.getDate() + 1);
+    } else if (task.frequency === "weekly" || task.frequency === "biweekly") {
+        const target = task.dayOfWeek != null ? task.dayOfWeek : 1;
+        let days = (7 + target - next.getDay()) % 7;
+        if (days === 0) days = 7;
+        next.setDate(next.getDate() + days);
+        next.setHours(hh, mm, 0, 0);
+        if (task.frequency === "biweekly") next.setDate(next.getDate() + 7);
+    } else if (task.frequency === "monthly") {
+        const dom = task.dayOfMonth != null ? task.dayOfMonth : 1;
+        next.setDate(dom); next.setHours(hh, mm, 0, 0);
+        if (next <= now) { next.setMonth(next.getMonth() + 1); next.setDate(dom); }
+    }
+    return next;
+}
+
+app.get("/api/scheduled-tasks", async (req, res) => {
+    try { res.json((await ScheduledTask.findAll({ order: [["createdAt","DESC"]] })).map(fmt)); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post("/api/scheduled-tasks", async (req, res) => {
+    try {
+        const task = await ScheduledTask.create(req.body);
+        await task.update({ nextRunAt: calcNextRun(task) });
+        res.status(201).json(fmt(task));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put("/api/scheduled-tasks/:id", async (req, res) => {
+    try {
+        const task = await ScheduledTask.findByPk(req.params.id);
+        if (!task) return res.status(404).json({ error: "Not found" });
+        await task.update(req.body);
+        await task.update({ nextRunAt: calcNextRun(task) });
+        res.json(fmt(task));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete("/api/scheduled-tasks/:id", async (req, res) => {
+    try {
+        const task = await ScheduledTask.findByPk(req.params.id);
+        if (task) await task.destroy();
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+async function runScheduledTasks() {
+    try {
+        const now = new Date();
+        const due = await ScheduledTask.findAll({ where: { active: true, nextRunAt: { [Op.lte]: now } } });
+        if (!due.length) return;
+        const [maxRow] = await sequelize.query(
+            "SELECT MAX(CAST(SUBSTRING(id, 5) AS UNSIGNED)) as maxNum FROM Tickets WHERE id LIKE 'TKT-%'",
+            { type: sequelize.QueryTypes.SELECT }
+        );
+        let counter = (maxRow && maxRow.maxNum ? maxRow.maxNum : 1000) + 1;
+        for (const task of due) {
+            try {
+                let tid = "TKT-" + String(counter).padStart(4, "0");
+                while (await Ticket.findByPk(tid)) { counter++; tid = "TKT-" + String(counter).padStart(4, "0"); }
+                await Ticket.create({
+                    id: tid,
+                    summary: task.summary,
+                    description: task.description || "",
+                    org: task.org || "",
+                    department: task.department || "",
+                    reportedBy: task.reportedBy || "Scheduled Task",
+                    assignees: task.assignees || [],
+                    priority: task.priority || "Standard",
+                    category: task.category || "",
+                    status: "Open",
+                    location: task.location || "",
+                    timeline: [{ action: "Created", by: "Scheduled Task", date: now.toISOString(), note: "Auto-created by scheduled task: " + task.name }],
+                    comments: [],
+                    customAttrs: {},
+                });
+                counter++;
+                cacheDel("paginated:", "counts", "stats:");
+                await task.update({ lastRunAt: now, nextRunAt: calcNextRun(task, now) });
+                console.log("Scheduled task [" + task.name + "] created ticket " + tid);
+            } catch (taskErr) {
+                console.error("Scheduled task [" + task.name + "] failed:", taskErr.message);
+            }
+        }
+    } catch (err) {
+        console.error("Scheduled task runner error:", err.message);
+    }
+}
 
     app.listen(PORT, () => {
       serverReady = true;
