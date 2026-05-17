@@ -263,6 +263,7 @@ export default function HelpDesk() {
   const [customDateFrom, setCustomDateFrom] = useState("");
   const [customDateTo, setCustomDateTo] = useState("");
   const [dashboardOrg, setDashboardOrg] = useState("all");
+  const [bootComplete, setBootComplete] = useState(false);
   const [catBreakdownExpanded, setCatBreakdownExpanded] = useState(false);
   const [closuresByPersonExpanded, setClosuresByPersonExpanded] = useState(false);
 
@@ -957,6 +958,9 @@ export default function HelpDesk() {
         setLoading(true);
         await loadData();
         setBootPhase("");
+        setBootComplete(true);
+        // Force dashboard stats refresh after data is loaded
+        setDashboardOrg(prev => { setTimeout(() => setDashboardOrg(prev), 0); return prev; });
       }
     };
     boot();
@@ -1674,11 +1678,12 @@ export default function HelpDesk() {
       params.set("dateFrom", cutoff.toISOString().split("T")[0]);
     }
     const qs = params.toString();
+    if (!currentUser) return;
     setDashboardStatsLoading(true);
     axios.get(`${BASE_URL}/stats/dashboard${qs ? `?${qs}` : ""}`)
       .then(r => { setDashboardStatsMap(r.data); setDashboardStatsLoading(false); })
       .catch(() => { setDashboardStatsLoading(false); });
-  }, [dashboardOrg, dashboardTimePeriod]);
+  }, [dashboardOrg, dashboardTimePeriod, currentUser, bootComplete]);
 
 
   const agentStats = useMemo(() => {
