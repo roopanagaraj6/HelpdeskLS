@@ -27,8 +27,10 @@ export function useTicketHandlers(ctx) {
     setCustomAlert,
     setSelTicket,
     setShowNewTicket, setShowAssigneeDD, setAssigneeSearch,
-    setShowRemarkModal, setClosingTicketId, setPendingTicketStatus, setClosedBy,
+    setShowRemarkModal, setClosingTicketId, setIsReopenModal, isReopenModalRef, setPendingTicketStatus, setClosedBy,
     setTicketRemark, setClosedDate, setMinutes,
+    closingTicketId, isReopenModal,
+    ticketRemark, closedDate, closedBy,
     setCcInput,
     setDeleteConfirmation,
     ticketImage, setTicketImage, setTicketImagePreview,
@@ -474,6 +476,8 @@ export function useTicketHandlers(ctx) {
     // ✅ NEW: If closing ticket, ask for remark first
     if (status === "Closed") {
     setClosingTicketId(id);
+    setIsReopenModal(false);
+    if (isReopenModalRef) isReopenModalRef.current = false;
     setTicketRemark("");
     const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     setClosedDate(now.toISOString().slice(0, 16));
@@ -482,6 +486,8 @@ export function useTicketHandlers(ctx) {
     }
     if (status === "Reopened") {
         setClosingTicketId(id);
+        setIsReopenModal(true);
+        if (isReopenModalRef) isReopenModalRef.current = true;
         setTicketRemark("");
         setShowRemarkModal(true);
         return;
@@ -536,18 +542,22 @@ export function useTicketHandlers(ctx) {
   };
 
   // ✅ NEW: Close ticket with remark
-    const closeTicketWithRemark = async () => {
-    if (!ticketRemark.trim()) {
+    const closeTicketWithRemark = async (isReopenIntent, liveRemark, liveClosingId, liveClosedDate, liveClosedBy) => {
+    const isReopening = (isReopenModalRef ? isReopenModalRef.current : isReopenIntent) === true;
+    const remark = liveRemark ?? ticketRemark;
+    const ticketId = liveClosingId ?? closingTicketId;
+    const closedDateVal = liveClosedDate ?? closedDate;
+    const closedByVal = liveClosedBy ?? closedBy;
+    if (!remark.trim()) {
       setCustomAlert({ show: true, message: "⚠️ Remark is mandatory before closing the ticket", type: "error" });
       return;
     }
-    const t = tickets.find(x => x.id === closingTicketId);
-    const isReopening = t?.status === "Closed";
-    if (!isReopening && !closedDate) {
+    const t = tickets.find(x => x.id === ticketId);
+    if (!isReopening && !closedDateVal) {
       setCustomAlert({ show: true, message: "⚠️ Closed date is mandatory before closing the ticket", type: "error" });
       return;
     }
-    if (!isReopening && !closedBy) {
+    if (!isReopening && !closedByVal) {
       setCustomAlert({ show: true, message: "⚠️ Please select who closed this ticket", type: "error" });
       return;
     }
@@ -555,33 +565,39 @@ export function useTicketHandlers(ctx) {
     if (!t) return;
     try {
       const nowISO = new Date().toISOString();
-      const newStatus = t.status === "Closed" ? "Reopened" : "Closed";
-      const closedByName = closedBy ? closedBy.name : currentUser.name;
-      const newTimelineEvent = { action: `Status changed to ${newStatus}`, by: currentUser.name, date: nowISO, note: `Reason: ${ticketRemark}${closedBy ? ` · Closed by: ${closedBy.name}` : ""}${newStatus === "Closed" && closedDate ? ` · Closed Date: ${new Date(closedDate).toLocaleString()}` : ""}` };
-      const updatedT = { ...t, status: newStatus, updated: nowISO, closedBy: newStatus === "Closed" ? closedByName : null, closedAt: newStatus === "Closed" ? (closedDate ? new Date(closedDate).toISOString() : nowISO) : null, timeline: [...(t.timeline || []), newTimelineEvent] };
-      const apiUrl = isTrueWebcast(t) ? `${BASE_URL}/webcasts/${closingTicketId}` : `${TICKETS_API}/${closingTicketId}`;
+      const isReopeningNow = isReopening;
+      const newStatus = isReopeningNow ? "Open" : "Closed";
+      const closedByName = closedByVal ? closedByVal.name : currentUser.name;
+      const newTimelineEvent = {
+        action: isReopeningNow ? "Reopened" : "Status changed to Closed",
+        by: currentUser.name,
+        date: nowISO,
+        note: `Reason: ${remark}${closedByVal ? ` · Closed by: ${closedByVal.name}` : ""}${!isReopeningNow && closedDateVal ? ` · Closed Date: ${new Date(closedDateVal).toLocaleString()}` : ""}`
+      };
+      const updatedT = { ...t, status: newStatus, updated: nowISO, closedBy: newStatus === "Closed" ? closedByName : null, closedAt: newStatus === "Closed" ? (closedDateVal ? new Date(closedDateVal).toISOString() : nowISO) : null, timeline: [...(t.timeline || []), newTimelineEvent] };
+      const apiUrl = isTrueWebcast(t) ? `${BASE_URL}/webcasts/${ticketId}` : `${TICKETS_API}/${ticketId}`;
       await axios.put(apiUrl, updatedT);
-      setTickets(p => p.map(x => x.id === closingTicketId ? { ...updatedT, updated: new Date(nowISO) } : x));
-      if (selTicket?.id === closingTicketId) setSelTicket({ ...updatedT, updated: new Date(nowISO) });
+      setTickets(p => p.map(x => x.id === ticketId ? { ...updatedT, updated: new Date(nowISO) } : x));
+      if (selTicket?.id === ticketId) setSelTicket({ ...updatedT, updated: new Date(nowISO) });
 
       // Force re-fetch webcasts to ensure DB is in sync before next refresh
       try {
-        const refreshed = await axios.get(`${BASE_URL}/webcasts/${closingTicketId}`);
+        if (!isTrueWebcast(t)) throw new Error("not a webcast");
+        const refreshed = await axios.get(`${BASE_URL}/webcasts/${ticketId}`);
         if (refreshed.data) {
           const fresh = { ...refreshed.data, created: new Date(refreshed.data.createdAt || refreshed.data.created), updated: new Date(refreshed.data.updatedAt || refreshed.data.updated) };
-          setTickets(p => p.map(x => x.id === closingTicketId ? fresh : x));
+          setTickets(p => p.map(x => x.id === ticketId ? fresh : x));
         }
       } catch (_) { }
-      addDailyNotif({ type: newStatus === "Closed" ? "ticket_closed" : "ticket_reopened", icon: newStatus === "Closed" ? "✅" : "🔄", text: `${currentUser.name} ${newStatus === "Closed" ? "closed" : "reopened"} ticket ${closingTicketId}`, ticketId: closingTicketId, by: currentUser.name });
-      // Notify all other assignees that the ticket was closed
+      addDailyNotif({ type: newStatus === "Closed" ? "ticket_closed" : "ticket_reopened", icon: newStatus === "Closed" ? "✅" : "🔄", text: `${currentUser.name} ${newStatus === "Closed" ? "closed" : "reopened"} ticket ${ticketId}`, ticketId, by: currentUser.name });
       const otherAssignees = (t.assignees || []).filter(a => a.id !== currentUser.id);
       for (const assignee of otherAssignees) {
         await axios.post(NOTIFICATIONS_API, {
           userId: assignee.id,
           type: newStatus === "Closed" ? "ticket_closed" : "ticket_reopened",
-          title: `Ticket ${closingTicketId} ${newStatus === "Closed" ? "Closed" : "Reopened"}`,
+          title: `Ticket ${ticketId} ${newStatus === "Closed" ? "Closed" : "Reopened"}`,
           message: `${currentUser.name} ${newStatus === "Closed" ? "closed" : "reopened"} ticket "${t.summary}" which was also assigned to you.`,
-          ticketId: closingTicketId,
+          ticketId,
           read: false,
           createdAt: nowISO,
         }).catch(() => { });
@@ -590,11 +606,12 @@ export function useTicketHandlers(ctx) {
       // Reset and close modals
       setShowRemarkModal(false);
       setClosingTicketId(null);
+      setIsReopenModal(false);
+      if (isReopenModalRef) isReopenModalRef.current = false;
       setTicketRemark("");
       setClosedBy(null);
       setClosedDate("");
       setCustomAlert({ show: true, message: newStatus === "Closed" ? "✅ Ticket successfully closed" : "✅ Ticket successfully reopened", type: "success" });
-      // Close the ticket details modal after 1 second to show the success message
       setTimeout(() => setSelTicket(null), 1000);
     } catch (e) {
       setCustomAlert({ show: true, message: "Failed to close ticket", type: "error" });
@@ -685,5 +702,5 @@ export function useTicketHandlers(ctx) {
   };
 
 
-  return { handleSelectiveImport, handleExport, handleSubmit, deleteTicket, toggleAssignee, addCC, updateStatus, toggleSel, toggleCurrentPage, toggleAllFiltered, toggleAll, compressImage };
+  return { handleSelectiveImport, handleExport, handleSubmit, deleteTicket, toggleAssignee, addCC, updateStatus, closeTicketWithRemark, clearAllTickets, toggleSel, toggleCurrentPage, toggleAllFiltered, toggleAll, compressImage };
 }

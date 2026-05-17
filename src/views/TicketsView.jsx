@@ -418,7 +418,7 @@ export const TicketsView = React.memo(function TicketsView(props) {
                     <td style={tdStyle} onClick={e => e.stopPropagation()}>
                       {t.status === "Closed" ? (
                         <button
-                          onClick={() => updateStatus(t.id, "Open")}
+                          onClick={() => updateStatus(t.id, "Reopened")}
                           style={{ padding: "4px 10px", borderRadius: 6, border: "1.5px solid #f59e0b", background: "#fffbeb", color: "#b45309", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", whiteSpace: "nowrap" }}
                         >🔄 Reopen</button>
                       ) : (

@@ -99,8 +99,8 @@ export function Modals(props) {
 
     // remark/close
     showRemarkModal, setShowRemarkModal,
-    closingTicketId, ticketRemark, setTicketRemark,
-    pendingTicketStatus, setPendingTicketStatus, closedBy, closedDate, minutes,
+    closingTicketId, isReopenModal, setIsReopenModal, ticketRemark, setTicketRemark,
+    pendingTicketStatus, setPendingTicketStatus, closedBy, setClosedBy, closedDate, setClosedDate, minutes,
     updateStatus,
 
     // attr layout
@@ -1486,14 +1486,14 @@ export function Modals(props) {
       </Modal>
 
       {/* ✅ NEW: Close Ticket with Remark Modal */}
-      <Modal open={showRemarkModal} onClose={() => { setShowRemarkModal(false); setTicketRemark(""); setClosedBy(null); }} title={closingTicketId && tickets.find(x => x.id === closingTicketId)?.status === "Closed" ? "Reopen Ticket - Add Reason" : "Close Ticket - Add Remark"} width={500}>
+      <Modal open={showRemarkModal} onClose={() => { setShowRemarkModal(false); setTicketRemark(""); setClosedBy(null); }} title={isReopenModal ? "Reopen Ticket - Add Reason" : "Close Ticket - Add Remark"} width={500}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8, display: "block" }}>{closingTicketId && tickets.find(x => x.id === closingTicketId)?.status === "Closed" ? "🔄 Why are you reopening? (Mandatory)" : "📝 What have you done? (Mandatory)"}</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8, display: "block" }}>{isReopenModal ? "🔄 Why are you reopening? (Mandatory)" : "📝 What have you done? (Mandatory)"}</label>
             <textarea
               value={ticketRemark}
               onChange={e => setTicketRemark(e.target.value)}
-              placeholder={closingTicketId && tickets.find(x => x.id === closingTicketId)?.status === "Closed" ? "Explain why this ticket needs to be reopened..." : "Describe what you did to resolve this ticket..."}
+              placeholder={isReopenModal ? "Explain why this ticket needs to be reopened..." : "Describe what you did to resolve this ticket..."}
               style={{
                 width: "100%",
                 minHeight: 120,
@@ -1508,12 +1508,12 @@ export function Modals(props) {
               }}
             />
             {!ticketRemark.trim() && (
-              <div style={{ marginTop: 8, fontSize: 11, color: "#ef4444" }}>{closingTicketId && tickets.find(x => x.id === closingTicketId)?.status === "Closed" ? "⚠️ Reason is mandatory before reopening" : "⚠️ Remark is mandatory before closing"}</div>
+              <div style={{ marginTop: 8, fontSize: 11, color: "#ef4444" }}>{isReopenModal ? "⚠️ Reason is mandatory before reopening" : "⚠️ Remark is mandatory before closing"}</div>
             )}
           </div>
           
           {/* Closed Date — only shown when closing (not reopening) */}
-          {!(closingTicketId && tickets.find(x => x.id === closingTicketId)?.status === "Closed") && (
+          {!isReopenModal && (
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8, display: "block" }}>📅 Closed Date <span style={{ color: "#ef4444" }}>*</span></label>
               <input
@@ -1527,7 +1527,7 @@ export function Modals(props) {
           )}
 
           {/* Closed By — only shown when closing (not reopening) */}
-          {!(closingTicketId && tickets.find(x => x.id === closingTicketId)?.status === "Closed") && (
+          {!isReopenModal && (
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8, display: "block" }}>👤 Closed By <span style={{ color: "#ef4444" }}>*</span></label>
               <div style={{ position: "relative" }}>
@@ -1560,7 +1560,7 @@ export function Modals(props) {
 
           <div style={{ display: "flex", gap: 8 }}>
             <button
-              onClick={closeTicketWithRemark}
+              onClick={() => closeTicketWithRemark && closeTicketWithRemark(isReopenModal, ticketRemark, closingTicketId, closedDate, closedBy)}
               disabled={!ticketRemark.trim()}
               style={{
                 flex: 1,
@@ -1574,7 +1574,7 @@ export function Modals(props) {
                 fontSize: 12
               }}
             >
-              ✅ {closingTicketId && tickets.find(x => x.id === closingTicketId)?.status === "Closed" ? "Reopen Ticket" : "Close & Save Remark"}
+              ✅ {isReopenModal ? "Reopen Ticket" : "Close & Save Remark"}
             </button>
             <button
               onClick={() => {

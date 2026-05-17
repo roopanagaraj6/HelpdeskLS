@@ -1252,7 +1252,7 @@ app.get("/api/stats/dashboard", async (req, res) => {
                 `SELECT COUNT(*) as total,
                         SUM(CASE WHEN status='Open'     THEN 1 ELSE 0 END) as open,
                         SUM(CASE WHEN status='Closed'   THEN 1 ELSE 0 END) as closed,
-                        SUM(CASE WHEN status='Reopened' THEN 1 ELSE 0 END) as reopened,
+                        SUM(CASE WHEN JSON_SEARCH(timeline, 'one', 'Reopened', NULL, '$[*].action') IS NOT NULL THEN 1 ELSE 0 END) as reopened,
                         SUM(CASE WHEN priority='Critical' AND status='Open' THEN 1 ELSE 0 END) as critical
                  FROM Tickets t WHERE t.status != 'Bin' ${orgClause} ${dateClause}`,
                 { type: sequelize.QueryTypes.SELECT }
@@ -1332,6 +1332,13 @@ app.get("/api/tickets/paginated", async (req, res) => {
             if (dateTo)   where[dateField][Op.lte] = new Date(dateTo   + "T23:59:59");
         }
 
+        // Reopened filter
+        if (req.query.reopened === "1") {
+            where[Op.and] = [...(where[Op.and] || []),
+                sequelize.literal(`JSON_SEARCH(timeline, 'one', 'Reopened', NULL, '$[*].action') IS NOT NULL`)
+            ];
+        }
+
         // Past due filter
         if (req.query.pastdue === "1") {
             where.dueDate = { [Op.lt]: new Date() };
@@ -1358,7 +1365,7 @@ app.get("/api/tickets/paginated", async (req, res) => {
 
         const { count, rows } = await Ticket.findAndCountAll({
             where,
-            attributes: { exclude: ["image", "timeline", "comments", "description"] },
+            attributes: { exclude: ["image", ...(req.query.reopened === "1" ? [] : ["timeline"]), "comments", "description"] },
             order: [["createdAt", sortDir]],
             limit,
             offset,
@@ -1439,7 +1446,7 @@ app.get("/api/tickets/counts", async (req, res) => {
         ]);
         const total = byStatus.reduce((sum, r) => sum + parseInt(r.cnt), 0);
         const critical = await Ticket.count({ where: { priority: "Critical", status: "Open" } });
-        const reopened = await Ticket.count({ where: { status: "Reopened" } });
+        const reopened = (await sequelize.query(`SELECT COUNT(*) as cnt FROM Tickets WHERE JSON_SEARCH(timeline, 'one', 'Reopened', NULL, '$[*].action') IS NOT NULL AND status != 'Bin'`, { type: sequelize.QueryTypes.SELECT }))[0]?.cnt || 0;
         const result = { byStatus, total, critical, reopened };
         cacheSet("counts", result, CACHE_TTL.counts);
         res.json(result);

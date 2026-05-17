@@ -263,7 +263,6 @@ export default function HelpDesk() {
   const [customDateFrom, setCustomDateFrom] = useState("");
   const [customDateTo, setCustomDateTo] = useState("");
   const [dashboardOrg, setDashboardOrg] = useState("all");
-  const [bootComplete, setBootComplete] = useState(false);
   const [catBreakdownExpanded, setCatBreakdownExpanded] = useState(false);
   const [closuresByPersonExpanded, setClosuresByPersonExpanded] = useState(false);
 
@@ -429,7 +428,7 @@ export default function HelpDesk() {
     if (tvFilter === "open")    { params.set("status", "Open"); }
     else if (tvFilter === "closed")  { params.set("status", "Closed"); }
     else if (tvFilter === "pastdue") { params.set("status", "Open"); params.set("pastdue", "1"); }
-    else if (tvFilter === "reopened") { params.set("status", "Reopened"); }
+    else if (tvFilter === "reopened") { params.set("reopened", "1"); params.set("status", "Open"); }
     else if (tvFilter === "unassigned") { params.set("unassigned", "1"); params.set("status", "Open"); }
     else {
       // tvFilter is "all" or other — use filterStatus chips
@@ -731,6 +730,8 @@ export default function HelpDesk() {
   const [showTicketDropdown, setShowTicketDropdown] = useState(false);
   const [showRemarkModal, setShowRemarkModal] = useState(false);
   const [closingTicketId, setClosingTicketId] = useState(null);
+  const [isReopenModal, setIsReopenModal] = useState(false);
+  const isReopenModalRef = useRef(false);
   const [ticketRemark, setTicketRemark] = useState("");
   const [closedBy, setClosedBy] = useState(null);
   const [closedDate, setClosedDate] = useState("");
@@ -958,9 +959,6 @@ export default function HelpDesk() {
         setLoading(true);
         await loadData();
         setBootPhase("");
-        setBootComplete(true);
-        // Force dashboard stats refresh after data is loaded
-        setDashboardOrg(prev => { setTimeout(() => setDashboardOrg(prev), 0); return prev; });
       }
     };
     boot();
@@ -1431,8 +1429,10 @@ export default function HelpDesk() {
   const isTrueWebcast = (t) =>
   (String(t.id).startsWith("WEB-") || String(t.id).startsWith("WC-"));
 
+  const SERVER_FILTERED_VIEWS = ["open", "closed", "reopened", "pastdue", "unassigned"];
   const filtered = useMemo(() => tickets.filter(t => {
-    if (!currentUser || !cvd.filter(t, currentUser)) return false;
+    if (!currentUser) return false;
+    if (!SERVER_FILTERED_VIEWS.includes(cvd.id) && !cvd.filter(t, currentUser)) return false;
     if (cvd.id !== "bin" && t.status === "Bin") return false;
     if (currentUser.role !== "Admin" && currentUser.role !== "Manager" && t.reportedBy !== currentUser.name && !t.assignees?.some(a => a.id === currentUser.id || a.name === currentUser.name)) return false;
     if (statusF !== "All" && t.status !== statusF) return false;
@@ -1519,9 +1519,10 @@ export default function HelpDesk() {
     showForward, showVendor,
     vendorReturnNote, setVendorReturnNote,
     vendorReturnOutcome, setVendorReturnOutcome,
-    setClosingTicketId, setPendingTicketStatus, setClosedBy,
+    setClosingTicketId, setIsReopenModal, isReopenModalRef, setPendingTicketStatus, setClosedBy,
     setTicketRemark, setClosedDate, setMinutes: () => {},
-    closingTicketId,
+    closingTicketId, isReopenModal,
+    ticketRemark, closedDate, closedBy,
     setCustomAlert, setCcInput, setAssigneeSearch,
     setDeleteConfirmation, setTicketImage, setTicketImagePreview,
     exportFilterType, exportFilterValue, exportFormat, targetTable,
@@ -1611,7 +1612,6 @@ export default function HelpDesk() {
 
   const [dashboardStatsMap, setDashboardStatsMap] = useState({ priority: [], category: [], daily: [] });
   const [dashboardStatsLoading, setDashboardStatsLoading] = useState(false);
-  const [dashboardRefreshTick, setDashboardRefreshTick] = useState(0);
 
   // ✅ NEW: Dashboard stats (filtered by organization)
   const dashboardStats = useMemo(() => {
@@ -1679,13 +1679,12 @@ export default function HelpDesk() {
       params.set("dateFrom", cutoff.toISOString().split("T")[0]);
     }
     const qs = params.toString();
-    if (!currentUser) return;
-    // Don't clear map — keep stale data visible while fetch runs
     setDashboardStatsLoading(true);
     axios.get(`${BASE_URL}/stats/dashboard${qs ? `?${qs}` : ""}`)
       .then(r => { setDashboardStatsMap(r.data); setDashboardStatsLoading(false); })
       .catch(() => { setDashboardStatsLoading(false); });
-  }, [dashboardOrg, dashboardTimePeriod, currentUser, bootComplete, dashboardRefreshTick]);
+  }, [dashboardOrg, dashboardTimePeriod]);
+
 
   const agentStats = useMemo(() => {
     const orgProjects = dashboardOrg === "all" ? prbr : prbr.filter(p => p.org === dashboardOrg);
@@ -2347,13 +2346,6 @@ export default function HelpDesk() {
           {sideNav.map(n => (
             <React.Fragment key={n.id}>
               <button onClick={() => {
-                if (n.id === "dashboard") {
-                  // Instantly refresh counts cache for fast render
-                  axios.get(`${BASE_URL}/tickets/counts`)
-                    .then(r => setServerTicketCounts(r.data))
-                    .catch(() => {});
-                  setDashboardRefreshTick(t => t + 1);
-                }
                 switchView(n.id);
                 if (n.id === "tickets") {
                   setTvFilter("all");
@@ -3378,8 +3370,8 @@ export default function HelpDesk() {
   showProjTimelineView={showProjTimelineView} setShowProjTimelineView={setShowProjTimelineView}
   showLocationModal={showLocationModal} setShowLocationModal={setShowLocationModal}
   showRemarkModal={showRemarkModal} setShowRemarkModal={setShowRemarkModal}
-  closingTicketId={closingTicketId} ticketRemark={ticketRemark} setTicketRemark={setTicketRemark}
-  closedBy={closedBy} closedDate={closedDate} minutes={minutes}
+  closingTicketId={closingTicketId} isReopenModal={isReopenModal} ticketRemark={ticketRemark} setTicketRemark={setTicketRemark}
+  closedBy={closedBy} setClosedBy={setClosedBy} closedDate={closedDate} setClosedDate={setClosedDate} setIsReopenModal={setIsReopenModal} minutes={minutes}
   updateStatus={updateStatus}
   showAttrLayoutModal={showAttrLayoutModal} setShowAttrLayoutModal={setShowAttrLayoutModal}
   draftLayout={draftLayout} setDraftLayout={setDraftLayout}
@@ -3449,9 +3441,7 @@ export default function HelpDesk() {
   setPendingTicketStatus={setPendingTicketStatus}
   timelineTab={timelineTab}
   setTimelineTab={setTimelineTab}
-  closeTicketWithRemark={(ticketId, remark) => {
-    updateStatus(ticketId, "Closed", remark);
-  }}
+  closeTicketWithRemark={closeTicketWithRemark}
   compressImage={compressImage}
   showToast={showToast}
   addDailyNotif={addDailyNotif}
