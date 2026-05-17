@@ -731,7 +731,6 @@ export default function HelpDesk() {
   const [showRemarkModal, setShowRemarkModal] = useState(false);
   const [closingTicketId, setClosingTicketId] = useState(null);
   const [isReopenModal, setIsReopenModal] = useState(false);
-  const isReopenModalRef = useRef(false);
   const [ticketRemark, setTicketRemark] = useState("");
   const [closedBy, setClosedBy] = useState(null);
   const [closedDate, setClosedDate] = useState("");
@@ -886,11 +885,13 @@ export default function HelpDesk() {
       }
 
       // load first page only; TicketsView fetches more via paginated endpoint
-      const [ticketRes, countsRes] = await Promise.all([
+      const [ticketRes, countsRes, statsRes] = await Promise.all([
         axios.get(`${BASE_URL}/tickets/paginated?limit=25&page=1`),
-        axios.get(`${BASE_URL}/tickets/counts`)
+        axios.get(`${BASE_URL}/tickets/counts`),
+        axios.get(`${BASE_URL}/stats/dashboard`),
       ]);
       setServerTicketCounts(countsRes.data);
+      if (statsRes.data) setDashboardStatsMap(statsRes.data);
       const allRaw = ticketRes.data.tickets || [];
       const parsedTickets = allRaw.map(t => ({
           ...t,
@@ -1519,7 +1520,7 @@ export default function HelpDesk() {
     showForward, showVendor,
     vendorReturnNote, setVendorReturnNote,
     vendorReturnOutcome, setVendorReturnOutcome,
-    setClosingTicketId, setIsReopenModal, isReopenModalRef, setPendingTicketStatus, setClosedBy,
+    setClosingTicketId, setIsReopenModal, setPendingTicketStatus, setClosedBy,
     setTicketRemark, setClosedDate, setMinutes: () => {},
     closingTicketId, isReopenModal,
     ticketRemark, closedDate, closedBy,
@@ -1618,6 +1619,7 @@ export default function HelpDesk() {
   const isAgent = currentUser?.role === "Agent" || currentUser?.role === "Viewer";
   const unassigned = dashboardStatsMap.counts?.unassigned ?? 0;
 
+  // Admins/Managers: always use server stats — never fall back to local paginated data
   if (!isAgent && dashboardStatsMap.counts) {
     return {
       total: dashboardStatsMap.counts.total,
@@ -1628,7 +1630,10 @@ export default function HelpDesk() {
       unassigned,
     };
   }
-  if (!isAgent && serverTicketCounts && !dashboardStatsMap.counts && dashboardOrg === "all" && dashboardTimePeriod === "all") {
+  // While server stats are still loading, return null so tiles show skeleton
+  if (!isAgent && dashboardStatsLoading) return null;
+  // Fallback to counts API if stats haven't arrived yet
+  if (!isAgent && serverTicketCounts) {
     const open = serverTicketCounts.byStatus?.find(r => r.status === "Open")?.cnt || 0;
     const closed = serverTicketCounts.byStatus?.find(r => r.status === "Closed")?.cnt || 0;
     return {
@@ -1640,17 +1645,20 @@ export default function HelpDesk() {
       unassigned,
     };
   }
-  let base = dashboardData;
-  if (isAgent) base = base.filter(t => t.assignees?.some(a => a.id === currentUser?.id || a.name === currentUser?.name));
-  return {
-    total: base.filter(x => x.status !== "Bin").length,
-    open: base.filter(x => x.status === "Open").length,
-    closed: base.filter(x => x.status === "Closed").length,
-    critical: base.filter(x => x.priority === "Critical" && x.status === "Open").length,
-    reopened: base.filter(x => (x.timeline || []).some(e => e.action === "Reopened" || (e.action?.includes("Status changed to Open") && (x.timeline||[]).some(prev => prev.action?.includes("Status changed to Closed"))))).length,
-    unassigned,
-  };
-}, [dashboardData, currentUser, serverTicketCounts, dashboardStatsMap, dashboardOrg, dashboardTimePeriod]);
+  // Agents/Viewers: use their own filtered local data
+  if (isAgent) {
+    const base = dashboardData.filter(t => t.assignees?.some(a => a.id === currentUser?.id || a.name === currentUser?.name));
+    return {
+      total: base.filter(x => x.status !== "Bin").length,
+      open: base.filter(x => x.status === "Open").length,
+      closed: base.filter(x => x.status === "Closed").length,
+      critical: base.filter(x => x.priority === "Critical" && x.status === "Open").length,
+      reopened: base.filter(x => (x.timeline || []).some(e => e.action === "Reopened" || (e.action?.includes("Status changed to Open") && (x.timeline||[]).some(prev => prev.action?.includes("Status changed to Closed"))))).length,
+      unassigned,
+    };
+  }
+  return null;
+}, [dashboardData, currentUser, serverTicketCounts, dashboardStatsMap, dashboardStatsLoading, dashboardOrg, dashboardTimePeriod]);
 
   // For dashboard: Agents and Viewers only see stats for projects assigned to them
   const dashboardProjects = useMemo(() => {
@@ -3441,7 +3449,9 @@ export default function HelpDesk() {
   setPendingTicketStatus={setPendingTicketStatus}
   timelineTab={timelineTab}
   setTimelineTab={setTimelineTab}
-  closeTicketWithRemark={closeTicketWithRemark}
+  closeTicketWithRemark={(ticketId, remark) => {
+    updateStatus(ticketId, "Closed", remark);
+  }}
   compressImage={compressImage}
   showToast={showToast}
   addDailyNotif={addDailyNotif}

@@ -72,7 +72,7 @@ export function DashboardView(props) {
                 <span style={{ fontSize: 14, fontWeight: 900, color: "#1e293b", textTransform: "uppercase", letterSpacing: "0.1em", marginLeft: 2 }}>🎫 TICKETS</span>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 9, marginBottom: 20 }}>
-                {dashboardStatsLoading
+                {(dashboardStatsLoading || !dashboardStats)
                   ? Array.from({ length: (currentUser?.role === "Admin" || currentUser?.role === "Manager") ? 7 : 5 }).map((_, i) => <StatCardSkeleton key={i} />)
                   : [
                   { label: "Open", value: dashboardStats.open, bg: "#fef3c7", accent: "#f59e0b", icon: "", action: () => { switchView("tickets"); setTvFilter("all"); setFilterStatus(["open"]); setFilterAssignment([]); setPriorityF("All"); } },

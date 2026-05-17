@@ -9,6 +9,277 @@ import { BASE_URL, ORGS_API, CATEGORIES_API, LOCATIONS_API, VENDORS_API } from "
  * Organisations, Departments, Categories, Locations, Vendors,
  * User Management, Custom Attributes, DB Management, Profile.
  */
+
+// --- Scheduled Tasks Tab Component ---
+const SCHED_DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const FREQ_LABELS = { daily: "Daily", weekly: "Weekly", biweekly: "Bi-Weekly", monthly: "Monthly" };
+
+function ScheduledTasksTab({ currentUser, orgs, categories, users, locations, departments, setCustomAlert }) {
+  const [tasks, setTasks] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [showModal, setShowModal] = React.useState(false);
+  const [editTask, setEditTask] = React.useState(null);
+  const [assigneeSearch, setAssigneeSearch] = React.useState("");
+  const [showAssigneeDD, setShowAssigneeDD] = React.useState(false);
+
+  const emptyForm = () => ({
+    name: "", summary: "", description: "", org: "", department: "",
+    priority: "Standard", category: "", assignees: [], location: "",
+    reportedBy: currentUser?.name || "",
+    frequency: "weekly", dayOfWeek: 1, dayOfMonth: 1, timeOfDay: "09:00", active: true,
+  });
+  const [form, setForm] = React.useState(emptyForm());
+
+  React.useEffect(() => {
+    axios.get(BASE_URL + "/scheduled-tasks")
+      .then(r => { setTasks(r.data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const openAdd = () => { setForm(emptyForm()); setEditTask(null); setShowModal(true); };
+  const openEdit = (t) => { setForm({ ...t }); setEditTask(t); setShowModal(true); };
+
+  const save = async () => {
+    if (!form.name.trim()) return setCustomAlert({ show: true, message: "Task name is required", type: "error" });
+    if (!form.summary.trim()) return setCustomAlert({ show: true, message: "Ticket summary is required", type: "error" });
+    if (!form.org.trim()) return setCustomAlert({ show: true, message: "Organisation is required", type: "error" });
+    try {
+      if (editTask) {
+        const r = await axios.put(BASE_URL + "/scheduled-tasks/" + editTask.id, form);
+        setTasks(prev => prev.map(t => t.id === editTask.id ? r.data : t));
+        setCustomAlert({ show: true, message: "Task updated", type: "success" });
+      } else {
+        const r = await axios.post(BASE_URL + "/scheduled-tasks", { ...form, createdBy: currentUser?.name });
+        setTasks(prev => [r.data, ...prev]);
+        setCustomAlert({ show: true, message: "Scheduled task created", type: "success" });
+      }
+      setShowModal(false);
+    } catch (e) { setCustomAlert({ show: true, message: "Failed to save: " + e.message, type: "error" }); }
+  };
+
+  const remove = async (id) => {
+    if (!window.confirm("Delete this scheduled task?")) return;
+    await axios.delete(BASE_URL + "/scheduled-tasks/" + id);
+    setTasks(prev => prev.filter(t => t.id !== id));
+    setCustomAlert({ show: true, message: "Task deleted", type: "success" });
+  };
+
+  const toggle = async (t) => {
+    const r = await axios.put(BASE_URL + "/scheduled-tasks/" + t.id, { ...t, active: !t.active });
+    setTasks(prev => prev.map(x => x.id === t.id ? r.data : x));
+  };
+
+  const toggleAssignee = (u) => {
+    const exists = form.assignees.some(a => a.id === u.id);
+    setForm(f => ({ ...f, assignees: exists ? f.assignees.filter(a => a.id !== u.id) : [...f.assignees, { id: u.id, name: u.name, role: u.role }] }));
+  };
+
+  const orgDepts = (departments || []).filter(d => !form.org || d.orgName === form.org);
+
+  return (
+    <div style={{ background: "#faf8f4", borderRadius: 12, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+        <div>
+          <h3 style={{ margin: "0 0 3px", fontSize: 15, fontWeight: 700 }}>Scheduled Tasks ({tasks.length})</h3>
+          <p style={{ margin: 0, fontSize: 12, color: "#94a3b8" }}>Auto-create tickets on a recurring schedule</p>
+        </div>
+        <button onClick={openAdd} style={{ ...bP, padding: "8px 16px", fontSize: 12 }}>+ New Task</button>
+      </div>
+
+      {loading && <div style={{ textAlign: "center", color: "#94a3b8", padding: 32 }}>Loading...</div>}
+
+      {!loading && tasks.length === 0 && (
+        <div style={{ textAlign: "center", padding: 48, color: "#94a3b8" }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>&#9200;</div>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>No scheduled tasks yet</div>
+          <div style={{ fontSize: 12 }}>Create a task to auto-generate tickets on a recurring schedule</div>
+        </div>
+      )}
+
+      {!loading && tasks.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {tasks.map(t => (
+            <div key={t.id} style={{ background: "#fff", borderRadius: 10, border: "1px solid #e2e8f0", padding: "14px 16px", display: "flex", alignItems: "flex-start", gap: 14 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>{t.name}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: t.active ? "#dcfce7" : "#f1f5f9", color: t.active ? "#15803d" : "#94a3b8" }}>
+                    {t.active ? "Active" : "Paused"}
+                  </span>
+                  <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 99, background: "#eff6ff", color: "#3b82f6", fontWeight: 600 }}>
+                    {FREQ_LABELS[t.frequency] || t.frequency}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, color: "#475569", marginBottom: 4 }}>
+                  <span style={{ fontWeight: 600 }}>Ticket: </span>{t.summary}
+                  {t.org && <span style={{ marginLeft: 10, color: "#94a3b8" }}>&#8226; {t.org}</span>}
+                  {t.priority && <span style={{ marginLeft: 8, color: "#f59e0b", fontWeight: 600 }}>&#8226; {t.priority}</span>}
+                  {t.category && <span style={{ marginLeft: 8, color: "#94a3b8" }}>&#8226; {t.category}</span>}
+                </div>
+                {t.assignees && t.assignees.length > 0 && (
+                  <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4 }}>
+                    Assignees: {t.assignees.map(a => a.name).join(", ")}
+                  </div>
+                )}
+                <div style={{ fontSize: 11, color: "#94a3b8", display: "flex", gap: 14, flexWrap: "wrap" }}>
+                  <span>
+                    &#128336; {t.timeOfDay}
+                    {t.frequency === "weekly" && " every " + (SCHED_DAYS[t.dayOfWeek] || "")}
+                    {t.frequency === "biweekly" && " bi-weekly on " + (SCHED_DAYS[t.dayOfWeek] || "")}
+                    {t.frequency === "monthly" && " on day " + t.dayOfMonth + " of month"}
+                    {t.frequency === "daily" && " daily"}
+                  </span>
+                  {t.nextRunAt && <span>Next: {new Date(t.nextRunAt).toLocaleString()}</span>}
+                  {t.lastRunAt && <span>Last ran: {new Date(t.lastRunAt).toLocaleString()}</span>}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <button onClick={() => toggle(t)} style={{ padding: "5px 10px", fontSize: 11, fontWeight: 600, borderRadius: 6, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", color: t.active ? "#f59e0b" : "#22c55e" }}>
+                  {t.active ? "Pause" : "Resume"}
+                </button>
+                <button onClick={() => openEdit(t)} style={{ padding: "5px 10px", fontSize: 11, fontWeight: 600, borderRadius: 6, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", color: "#3b82f6" }}>Edit</button>
+                <button onClick={() => remove(t.id)} style={{ padding: "5px 10px", fontSize: 11, fontWeight: 600, borderRadius: 6, border: "1px solid #fca5a5", background: "#fff", cursor: "pointer", color: "#ef4444" }}>Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 3000 }}>
+          <div style={{ background: "#fff", borderRadius: 14, padding: 28, width: 580, maxHeight: "90vh", overflow: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.25)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{editTask ? "Edit Scheduled Task" : "New Scheduled Task"}</h3>
+              <button onClick={() => setShowModal(false)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#94a3b8" }}>&#x2715;</button>
+            </div>
+
+            <FF label="Task Name *">
+              <input style={iS} placeholder="e.g. Weekly Backup Check" value={form.name}
+                onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+            </FF>
+
+            <div style={{ background: "#f0f9ff", borderRadius: 10, padding: "14px 16px", marginBottom: 14, border: "1px solid #bae6fd" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#0369a1", marginBottom: 12 }}>Schedule</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 14px" }}>
+                <FF label="Frequency">
+                  <select style={sS} value={form.frequency} onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))}>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="biweekly">Bi-Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </FF>
+                <FF label="Time of Day">
+                  <input type="time" style={iS} value={form.timeOfDay}
+                    onChange={e => setForm(f => ({ ...f, timeOfDay: e.target.value }))} />
+                </FF>
+                {(form.frequency === "weekly" || form.frequency === "biweekly") && (
+                  <FF label="Day of Week">
+                    <select style={sS} value={form.dayOfWeek} onChange={e => setForm(f => ({ ...f, dayOfWeek: parseInt(e.target.value) }))}>
+                      {SCHED_DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
+                    </select>
+                  </FF>
+                )}
+                {form.frequency === "monthly" && (
+                  <FF label="Day of Month">
+                    <select style={sS} value={form.dayOfMonth} onChange={e => setForm(f => ({ ...f, dayOfMonth: parseInt(e.target.value) }))}>
+                      {Array.from({ length: 28 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </FF>
+                )}
+              </div>
+            </div>
+
+            <div style={{ background: "#f8fafc", borderRadius: 10, padding: "14px 16px", marginBottom: 14, border: "1px solid #e2e8f0" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 12 }}>Ticket Details</div>
+              <FF label="Summary *">
+                <input style={iS} placeholder="Ticket summary when auto-created" value={form.summary}
+                  onChange={e => setForm(f => ({ ...f, summary: e.target.value }))} />
+              </FF>
+              <FF label="Description">
+                <textarea style={{ ...iS, minHeight: 70, resize: "vertical" }} placeholder="Optional description"
+                  value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+              </FF>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 14px" }}>
+                <FF label="Organisation *">
+                  <select style={sS} value={form.org} onChange={e => setForm(f => ({ ...f, org: e.target.value, department: "" }))}>
+                    <option value="">-- Select Org --</option>
+                    {(orgs || []).map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
+                  </select>
+                </FF>
+                <FF label="Department">
+                  <select style={sS} value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))}>
+                    <option value="">-- Select Dept --</option>
+                    {orgDepts.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                  </select>
+                </FF>
+                <FF label="Priority">
+                  <select style={sS} value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}>
+                    {["Critical","High","Standard","Medium"].map(p => <option key={p}>{p}</option>)}
+                  </select>
+                </FF>
+                <FF label="Category">
+                  <select style={sS} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
+                    <option value="">-- Select Category --</option>
+                    {(categories || []).map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
+                  </select>
+                </FF>
+                <FF label="Location">
+                  <select style={sS} value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))}>
+                    <option value="">-- Select Location --</option>
+                    {(locations || []).map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
+                  </select>
+                </FF>
+                <FF label="Reported By">
+                  <input style={iS} value={form.reportedBy}
+                    onChange={e => setForm(f => ({ ...f, reportedBy: e.target.value }))} />
+                </FF>
+              </div>
+
+              <FF label="Assignees">
+                <div style={{ position: "relative" }}>
+                  <input style={iS} placeholder="Search to add assignees..." value={assigneeSearch}
+                    onChange={e => setAssigneeSearch(e.target.value)}
+                    onFocus={() => setShowAssigneeDD(true)}
+                    onBlur={() => setTimeout(() => setShowAssigneeDD(false), 200)} />
+                  {showAssigneeDD && (
+                    <div style={{ position: "absolute", top: "calc(100% + 3px)", left: 0, right: 0, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, zIndex: 300, boxShadow: "0 4px 12px rgba(0,0,0,0.15)", maxHeight: 200, overflowY: "auto" }}>
+                      {(users || []).filter(u => !assigneeSearch || u.name.toLowerCase().includes(assigneeSearch.toLowerCase())).map(u => (
+                        <div key={u.id} onMouseDown={e => { e.preventDefault(); toggleAssignee(u); }}
+                          style={{ padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, background: form.assignees.some(a => a.id === u.id) ? "#eff6ff" : "transparent", borderBottom: "1px solid #f1f5f9" }}>
+                          <span style={{ fontSize: 13, fontWeight: form.assignees.some(a => a.id === u.id) ? 700 : 400, color: form.assignees.some(a => a.id === u.id) ? "#3b82f6" : "#1e293b" }}>{u.name}</span>
+                          <span style={{ fontSize: 11, color: "#94a3b8", marginLeft: "auto" }}>{u.role}</span>
+                          {form.assignees.some(a => a.id === u.id) && <span style={{ color: "#3b82f6" }}>&#10003;</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {form.assignees.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                    {form.assignees.map(a => (
+                      <span key={a.id} style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 10px", background: "#eff6ff", borderRadius: 99, fontSize: 11, fontWeight: 600, color: "#3b82f6" }}>
+                        {a.name}
+                        <button onClick={() => setForm(f => ({ ...f, assignees: f.assignees.filter(x => x.id !== a.id) }))}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", fontSize: 14, lineHeight: 1, padding: 0 }}>&#x2715;</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </FF>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button onClick={() => setShowModal(false)} style={{ ...bG, padding: "9px 18px" }}>Cancel</button>
+              <button onClick={save} style={{ ...bP, padding: "9px 18px" }}>{editTask ? "Save Changes" : "Create Task"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SettingsView(props) {
   const {
     currentUser,
@@ -78,6 +349,7 @@ export function SettingsView(props) {
     { id: "usermgmt", label: "User Management", icon: "" },
     { id: "customattrs", label: "Ticket Form", icon: "" },
     { id: "dbmgmt", label: "Database Mgmt", icon: "" },
+    { id: "scheduledtasks", label: "Scheduled Tasks", icon: "" },
   ] : currentUser?.role === "Manager" ? [
     { id: "organisations", label: "Orgs & Departments", icon: "" },
     { id: "categories", label: "Categories", icon: "" },
@@ -85,6 +357,7 @@ export function SettingsView(props) {
     { id: "vendors", label: "Vendors", icon: "" },
     { id: "usermgmt", label: "User Management", icon: "" },
     { id: "customattrs", label: "Ticket Form", icon: "" },
+    { id: "scheduledtasks", label: "Scheduled Tasks", icon: "" },
   ] : currentUser?.role === "Agent" ? [
     { id: "profile", label: "My Profile", icon: "" },
   ] : [];
@@ -775,6 +1048,15 @@ export function SettingsView(props) {
                   </label>
                 </div>
               </div>}
+
+              {settingsTab === "scheduledtasks" && (
+                <ScheduledTasksTab
+                  currentUser={currentUser}
+                  orgs={orgs} categories={categories} users={users}
+                  locations={locations} departments={departments}
+                  setCustomAlert={setCustomAlert}
+                />
+              )}
               {settingsTab === "profile" && currentUser?.role === "Agent" && (
                 <div style={{ background: "#faf8f4", borderRadius: 12, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                   <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>My Profile</h3>
