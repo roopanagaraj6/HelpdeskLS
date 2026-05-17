@@ -1611,6 +1611,7 @@ export default function HelpDesk() {
 
   const [dashboardStatsMap, setDashboardStatsMap] = useState({ priority: [], category: [], daily: [] });
   const [dashboardStatsLoading, setDashboardStatsLoading] = useState(false);
+  const [dashboardRefreshTick, setDashboardRefreshTick] = useState(0);
 
   // ✅ NEW: Dashboard stats (filtered by organization)
   const dashboardStats = useMemo(() => {
@@ -1679,12 +1680,12 @@ export default function HelpDesk() {
     }
     const qs = params.toString();
     if (!currentUser) return;
+    // Don't clear map — keep stale data visible while fetch runs
     setDashboardStatsLoading(true);
     axios.get(`${BASE_URL}/stats/dashboard${qs ? `?${qs}` : ""}`)
       .then(r => { setDashboardStatsMap(r.data); setDashboardStatsLoading(false); })
       .catch(() => { setDashboardStatsLoading(false); });
-  }, [dashboardOrg, dashboardTimePeriod, currentUser, bootComplete]);
-
+  }, [dashboardOrg, dashboardTimePeriod, currentUser, bootComplete, dashboardRefreshTick]);
 
   const agentStats = useMemo(() => {
     const orgProjects = dashboardOrg === "all" ? prbr : prbr.filter(p => p.org === dashboardOrg);
@@ -2346,6 +2347,13 @@ export default function HelpDesk() {
           {sideNav.map(n => (
             <React.Fragment key={n.id}>
               <button onClick={() => {
+                if (n.id === "dashboard") {
+                  // Instantly refresh counts cache for fast render
+                  axios.get(`${BASE_URL}/tickets/counts`)
+                    .then(r => setServerTicketCounts(r.data))
+                    .catch(() => {});
+                  setDashboardRefreshTick(t => t + 1);
+                }
                 switchView(n.id);
                 if (n.id === "tickets") {
                   setTvFilter("all");
