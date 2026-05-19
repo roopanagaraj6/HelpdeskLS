@@ -1245,9 +1245,12 @@ app.get("/api/stats/dashboard", async (req, res) => {
         if (hit) return res.json(hit);
 
         const orgClause  = org      ? `AND t.org = ${sequelize.escape(org)}` : "";
-        const dateClause = dateFrom ? `AND t.createdAt >= ${sequelize.escape(dateFrom + "T00:00:00")}` : "";
+        // Normalize dateFrom — client may send full ISO string or date-only string
+        const dateFromNorm = dateFrom ? (dateFrom.includes("T") ? dateFrom : dateFrom + "T00:00:00") : "";
+        const dateClause = dateFromNorm ? `AND t.createdAt >= ${sequelize.escape(dateFromNorm)}` : "";
+        const closedDateClause = dateFromNorm ? `AND t.closedAt >= ${sequelize.escape(dateFromNorm)}` : "";
 
-        const [byStatus, priority, category, daily, totals, unassignedRows] = await Promise.all([
+        const [byStatus, priority, category, daily, totals, unassignedRows, reopenedRows, closingUsersRows] = await Promise.all([
             sequelize.query(
                 `SELECT status, COUNT(*) as cnt FROM Tickets t
                  WHERE t.status != 'Bin' ${orgClause} ${dateClause} GROUP BY status`,
@@ -1275,7 +1278,6 @@ app.get("/api/stats/dashboard", async (req, res) => {
                 `SELECT COUNT(*) as total,
                         SUM(CASE WHEN status='Open'     THEN 1 ELSE 0 END) as open,
                         SUM(CASE WHEN status='Closed'   THEN 1 ELSE 0 END) as closed,
-                        SUM(CASE WHEN JSON_SEARCH(timeline, 'one', 'Reopened', NULL, '$[*].action') IS NOT NULL THEN 1 ELSE 0 END) as reopened,
                         SUM(CASE WHEN priority='Critical' AND status='Open' THEN 1 ELSE 0 END) as critical
                  FROM Tickets t WHERE t.status != 'Bin' ${orgClause} ${dateClause}`,
                 { type: sequelize.QueryTypes.SELECT }
@@ -1287,9 +1289,47 @@ app.get("/api/stats/dashboard", async (req, res) => {
                  ${orgClause} ${dateClause}`,
                 { type: sequelize.QueryTypes.SELECT }
             ),
+            // Reopened: tickets where a timeline event has action='Reopened' within IST date range
+            sequelize.query(
+                dateFromNorm
+                ? `SELECT COUNT(DISTINCT t.id) as cnt FROM Tickets t
+                   JOIN JSON_TABLE(t.timeline, '$[*]' COLUMNS(
+                     action VARCHAR(255) PATH '$.action',
+                     evt_date VARCHAR(50) PATH '$.date'
+                   )) jt ON TRUE
+                   WHERE t.status != 'Bin' ${orgClause}
+                   AND jt.action = 'Reopened'
+                   AND CONVERT_TZ(
+                     CASE
+                       WHEN jt.evt_date REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2}T'
+                         THEN STR_TO_DATE(LEFT(jt.evt_date, 19), '%Y-%m-%dT%H:%i:%s')
+                       WHEN jt.evt_date LIKE '__/__/____,%'
+                         THEN STR_TO_DATE(LEFT(jt.evt_date, 19), '%d/%m/%Y, %H:%i:%s')
+                       ELSE NULL
+                     END,
+                     '+00:00', '+05:30'
+                   ) >= ${sequelize.escape(dateFromNorm)}`
+                : `SELECT COUNT(*) as cnt FROM Tickets t
+                   WHERE t.status != 'Bin' ${orgClause}
+                   AND JSON_SEARCH(t.timeline, 'one', 'Reopened', NULL, '$[*].action') IS NOT NULL`,
+                { type: sequelize.QueryTypes.SELECT }
+            ),
+            // Closures by person: filter by closedAt for date range, org for org filter
+            sequelize.query(
+                `SELECT JSON_UNQUOTE(JSON_EXTRACT(a.val, '$.name')) as name, COUNT(*) as cnt
+                 FROM Tickets t
+                 JOIN JSON_TABLE(t.assignees, '$[*]' COLUMNS(val JSON PATH '$')) a ON TRUE
+                 WHERE t.status = 'Closed' ${orgClause} ${closedDateClause}
+                 GROUP BY name
+                 ORDER BY cnt DESC`,
+                { type: sequelize.QueryTypes.SELECT }
+            ),
         ]);
 
         const r = totals[0] || {};
+        const closingUsersMap = Object.fromEntries(
+            closingUsersRows.filter(row => row.name).map(row => [row.name, Number(row.cnt)])
+        );
         const result = {
             byStatus,
             priority,
@@ -1302,9 +1342,10 @@ app.get("/api/stats/dashboard", async (req, res) => {
                 open:       Number(r.open)     || 0,
                 closed:     Number(r.closed)   || 0,
                 critical:   Number(r.critical) || 0,
-                reopened:   Number(r.reopened) || 0,
+                reopened:   Number(reopenedRows[0]?.cnt) || 0,
                 unassigned: Number(unassignedRows[0]?.cnt) || 0,
             },
+            closingUsers: closingUsersMap,
         };
         cacheSet(cacheKey, result, CACHE_TTL.stats);
         res.json(result);
@@ -1351,12 +1392,13 @@ app.get("/api/tickets/paginated", async (req, res) => {
         }
         if (dateFrom || dateTo) {
             where[dateField] = {};
-            if (dateFrom) where[dateField][Op.gte] = new Date(dateFrom + "T00:00:00");
-            if (dateTo)   where[dateField][Op.lte] = new Date(dateTo   + "T23:59:59");
+            if (dateFrom) where[dateField][Op.gte] = new Date(dateFrom.includes("T") ? dateFrom : dateFrom + "T00:00:00");
+            if (dateTo)   where[dateField][Op.lte] = new Date(dateTo.includes("T")   ? dateTo   : dateTo   + "T23:59:59");
         }
 
-        // Reopened filter
+        // Reopened filter — remove any createdAt dateFrom constraint so old reopened tickets show
         if (req.query.reopened === "1") {
+            delete where[dateField];
             where[Op.and] = [...(where[Op.and] || []),
                 sequelize.literal(`JSON_SEARCH(timeline, 'one', 'Reopened', NULL, '$[*].action') IS NOT NULL`)
             ];
@@ -1435,8 +1477,8 @@ app.get("/api/tickets/report", async (req, res) => {
         }
         if (dateFrom || dateTo) {
             where[dateField] = {};
-            if (dateFrom) where[dateField][Op.gte] = new Date(dateFrom + "T00:00:00");
-            if (dateTo)   where[dateField][Op.lte] = new Date(dateTo   + "T23:59:59");
+            if (dateFrom) where[dateField][Op.gte] = new Date(dateFrom.includes("T") ? dateFrom : dateFrom + "T00:00:00");
+            if (dateTo)   where[dateField][Op.lte] = new Date(dateTo.includes("T")   ? dateTo   : dateTo   + "T23:59:59");
         }
 
         // Only fetch columns reports actually display — skip image/timeline/comments/description/cc/customAttrs/vendor

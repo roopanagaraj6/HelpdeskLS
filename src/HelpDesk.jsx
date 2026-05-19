@@ -281,7 +281,7 @@ export default function HelpDesk() {
       else if (dashboardTimePeriod === "3m") d.setMonth(d.getMonth() - 3);
       else if (dashboardTimePeriod === "6m") d.setMonth(d.getMonth() - 6);
       else if (dashboardTimePeriod === "1y") d.setFullYear(d.getFullYear() - 1);
-      dateFrom = d.toISOString().split("T")[0];
+      const _pad = n => String(n).padStart(2,"0"); dateFrom = `${d.getFullYear()}-${_pad(d.getMonth()+1)}-${_pad(d.getDate())}`;
     }
     setReportFilters(f => ({
       ...f,
@@ -411,10 +411,10 @@ export default function HelpDesk() {
   const importRef = useRef(null);
 
   const TICKETS_PER_PAGE = 25;
+  const [ticketDateFrom, setTicketDateFrom] = useState("");
   useEffect(() => {
     setTicketPage(1);
-  }, [search, statusF, priorityF, tvFilter, view, orgFilter, filterStatus, filterAssignment, filterAssignee, filterCategory, ticketSort]);
-
+  }, [search, statusF, priorityF, tvFilter, view, orgFilter, filterStatus, filterAssignment, filterAssignee, filterCategory, ticketSort, ticketDateFrom]);
   const [ticketsLoading, setTicketsLoading] = useState(false);
   useEffect(() => {
     if (view !== "tickets") return;
@@ -425,10 +425,10 @@ export default function HelpDesk() {
     if (orgFilter !== "all") params.set("org", orgFilter);
 
     // tvFilter drives server-side status — takes priority over filterStatus chips
-    if (tvFilter === "open")    { params.set("status", "Open"); }
+    if (tvFilter === "open")         { params.set("status", "Open"); }
     else if (tvFilter === "closed")  { params.set("status", "Closed"); }
     else if (tvFilter === "pastdue") { params.set("status", "Open"); params.set("pastdue", "1"); }
-    else if (tvFilter === "reopened") { params.set("reopened", "1"); params.set("status", "Open"); }
+    else if (tvFilter === "reopened") { params.set("reopened", "1"); } // no status=Open — reopened tickets can be any status
     else if (tvFilter === "unassigned") { params.set("unassigned", "1"); params.set("status", "Open"); }
     else {
       // tvFilter is "all" or other — use filterStatus chips
@@ -437,6 +437,20 @@ export default function HelpDesk() {
       if (filterStatus.length === 1 && filterStatus[0] === "pastdue") { params.set("status", "Open"); params.set("pastdue", "1"); }
       if (filterAssignment.length === 1 && filterAssignment[0] === "unassigned") params.set("unassigned", "1");
       if (filterAssignment.length === 1 && filterAssignment[0] === "vendor")     params.set("hasVendor", "1");
+    }
+
+    // Apply dashboard time period as dateFrom — takes priority over ticketDateFrom
+    if (dashboardTimePeriod && dashboardTimePeriod !== "all" && tvFilter !== "reopened") {
+      const cutoff = new Date();
+      if (dashboardTimePeriod === "1d") cutoff.setHours(0, 0, 0, 0);
+      else if (dashboardTimePeriod === "7d") cutoff.setDate(cutoff.getDate() - 7);
+      else if (dashboardTimePeriod === "1m") cutoff.setMonth(cutoff.getMonth() - 1);
+      else if (dashboardTimePeriod === "3m") cutoff.setMonth(cutoff.getMonth() - 3);
+      else if (dashboardTimePeriod === "6m") cutoff.setMonth(cutoff.getMonth() - 6);
+      else if (dashboardTimePeriod === "1y") cutoff.setFullYear(cutoff.getFullYear() - 1);
+      const _p2 = n => String(n).padStart(2,"0"); params.set("dateFrom", `${cutoff.getFullYear()}-${_p2(cutoff.getMonth()+1)}-${_p2(cutoff.getDate())}`);
+    } else if (ticketDateFrom) {
+      params.set("dateFrom", ticketDateFrom);
     }
 
     if (filterCategory) params.set("category", filterCategory);
@@ -456,7 +470,7 @@ export default function HelpDesk() {
         setTicketsLoading(false);
       })
       .catch(() => { setTicketsLoading(false); });
-  }, [ticketPage, view, debouncedSearch, priorityF, orgFilter, filterStatus, filterCategory, filterAssignee, filterAssignment, tvFilter, ticketSort]);
+  }, [ticketPage, view, debouncedSearch, priorityF, orgFilter, filterStatus, filterCategory, filterAssignee, filterAssignment, tvFilter, ticketSort, dashboardTimePeriod, ticketDateFrom]);
 
   // ── Project filters ──
   const [projSearch, setProjSearch] = useState("");
@@ -731,6 +745,7 @@ export default function HelpDesk() {
   const [showRemarkModal, setShowRemarkModal] = useState(false);
   const [closingTicketId, setClosingTicketId] = useState(null);
   const [isReopenModal, setIsReopenModal] = useState(false);
+  const isReopenModalRef = useRef(false);
   const [ticketRemark, setTicketRemark] = useState("");
   const [closedBy, setClosedBy] = useState(null);
   const [closedDate, setClosedDate] = useState("");
@@ -1439,7 +1454,7 @@ export default function HelpDesk() {
     if (orgFilter !== "all" && t.org !== orgFilter) return false;
     if (deptFilter !== "all" && t.department !== deptFilter) return false;
     if (categoryFilter !== "all" && t.category !== categoryFilter) return false;
-    if (dashboardTimePeriod !== "all") {
+    if (dashboardTimePeriod !== "all" && cvd.id !== "reopened") {
       const cutoff = new Date();
       if (dashboardTimePeriod === "1d") cutoff.setHours(0, 0, 0, 0);
       else if (dashboardTimePeriod === "7d") cutoff.setDate(cutoff.getDate() - 7);
@@ -1518,7 +1533,7 @@ export default function HelpDesk() {
     showForward, showVendor,
     vendorReturnNote, setVendorReturnNote,
     vendorReturnOutcome, setVendorReturnOutcome,
-    setClosingTicketId, setIsReopenModal, setPendingTicketStatus, setClosedBy,
+    setClosingTicketId, setIsReopenModal, isReopenModalRef, setPendingTicketStatus, setClosedBy,
     setTicketRemark, setClosedDate, setMinutes: () => {},
     closingTicketId, isReopenModal,
     ticketRemark, closedDate, closedBy,
@@ -1611,45 +1626,49 @@ export default function HelpDesk() {
 
   const [dashboardStatsMap, setDashboardStatsMap] = useState({ priority: [], category: [], daily: [] });
   const [dashboardStatsLoading, setDashboardStatsLoading] = useState(false);
+  const [dashboardRefreshTick, setDashboardRefreshTick] = useState(0);
 
   // ✅ NEW: Dashboard stats (filtered by organization)
   const dashboardStats = useMemo(() => {
-  const isAgent = currentUser?.role === "Agent" || currentUser?.role === "Viewer";
-  const unassigned = dashboardStatsMap.counts?.unassigned ?? 0;
+    const isAgent = currentUser?.role === "Agent" || currentUser?.role === "Viewer";
+    const unassigned = dashboardStatsMap.counts?.unassigned ?? 0;
 
-  if (!isAgent && dashboardStatsMap.counts) {
+    // Admin/Manager: always prefer server counts (fetched with correct org+dateFrom filters)
+    if (!isAgent && dashboardStatsMap.counts) {
+      return {
+        total: dashboardStatsMap.counts.total,
+        open: dashboardStatsMap.counts.open,
+        closed: dashboardStatsMap.counts.closed,
+        critical: dashboardStatsMap.counts.critical,
+        reopened: dashboardStatsMap.counts.reopened,
+        unassigned: dashboardStatsMap.counts.unassigned ?? 0,
+      };
+    }
+    // Admin/Manager fallback before dashboard stats load (initial page load, no filter)
+    if (!isAgent && serverTicketCounts && dashboardOrg === "all" && dashboardTimePeriod === "all") {
+      const open = serverTicketCounts.byStatus?.find(r => r.status === "Open")?.cnt || 0;
+      const closed = serverTicketCounts.byStatus?.find(r => r.status === "Closed")?.cnt || 0;
+      return {
+        total: serverTicketCounts.total,
+        open: parseInt(open),
+        closed: parseInt(closed),
+        critical: serverTicketCounts.critical,
+        reopened: serverTicketCounts.reopened,
+        unassigned,
+      };
+    }
+    // Agent/Viewer: compute from local dashboardData (their own tickets only)
+    let base = dashboardData;
+    if (isAgent) base = base.filter(t => t.assignees?.some(a => a.id === currentUser?.id || a.name === currentUser?.name));
     return {
-      total: dashboardStatsMap.counts.total,
-      open: dashboardStatsMap.counts.open,
-      closed: dashboardStatsMap.counts.closed,
-      critical: dashboardStatsMap.counts.critical,
-      reopened: dashboardStatsMap.counts.reopened,
+      total: base.filter(x => x.status !== "Bin").length,
+      open: base.filter(x => x.status === "Open").length,
+      closed: base.filter(x => x.status === "Closed").length,
+      critical: base.filter(x => x.priority === "Critical" && x.status === "Open").length,
+      reopened: base.filter(x => (x.timeline || []).some(e => e.action === "Reopened" || (e.action?.includes("Status changed to Open") && (x.timeline||[]).some(prev => prev.action?.includes("Status changed to Closed"))))).length,
       unassigned,
     };
-  }
-  if (!isAgent && serverTicketCounts && !dashboardStatsMap.counts && dashboardOrg === "all" && dashboardTimePeriod === "all") {
-    const open = serverTicketCounts.byStatus?.find(r => r.status === "Open")?.cnt || 0;
-    const closed = serverTicketCounts.byStatus?.find(r => r.status === "Closed")?.cnt || 0;
-    return {
-      total: serverTicketCounts.total,
-      open: parseInt(open),
-      closed: parseInt(closed),
-      critical: serverTicketCounts.critical,
-      reopened: serverTicketCounts.reopened,
-      unassigned,
-    };
-  }
-  let base = dashboardData;
-  if (isAgent) base = base.filter(t => t.assignees?.some(a => a.id === currentUser?.id || a.name === currentUser?.name));
-  return {
-    total: base.filter(x => x.status !== "Bin").length,
-    open: base.filter(x => x.status === "Open").length,
-    closed: base.filter(x => x.status === "Closed").length,
-    critical: base.filter(x => x.priority === "Critical" && x.status === "Open").length,
-    reopened: base.filter(x => (x.timeline || []).some(e => e.action === "Reopened" || (e.action?.includes("Status changed to Open") && (x.timeline||[]).some(prev => prev.action?.includes("Status changed to Closed"))))).length,
-    unassigned,
-  };
-}, [dashboardData, currentUser, serverTicketCounts, dashboardStatsMap, dashboardOrg, dashboardTimePeriod]);
+  }, [dashboardData, currentUser, serverTicketCounts, dashboardStatsMap, dashboardOrg, dashboardTimePeriod]);
 
   // For dashboard: Agents and Viewers only see stats for projects assigned to them
   const dashboardProjects = useMemo(() => {
@@ -1675,15 +1694,14 @@ export default function HelpDesk() {
       else if (dashboardTimePeriod === "3m") cutoff.setMonth(cutoff.getMonth() - 3);
       else if (dashboardTimePeriod === "6m") cutoff.setMonth(cutoff.getMonth() - 6);
       else if (dashboardTimePeriod === "1y") cutoff.setFullYear(cutoff.getFullYear() - 1);
-      params.set("dateFrom", cutoff.toISOString().split("T")[0]);
+      const _p3 = n => String(n).padStart(2,"0"); params.set("dateFrom", `${cutoff.getFullYear()}-${_p3(cutoff.getMonth()+1)}-${_p3(cutoff.getDate())}`);
     }
     const qs = params.toString();
     setDashboardStatsLoading(true);
     axios.get(`${BASE_URL}/stats/dashboard${qs ? `?${qs}` : ""}`)
       .then(r => { setDashboardStatsMap(r.data); setDashboardStatsLoading(false); })
       .catch(() => { setDashboardStatsLoading(false); });
-  }, [dashboardOrg, dashboardTimePeriod]);
-
+  }, [dashboardOrg, dashboardTimePeriod, dashboardRefreshTick]);
 
   const agentStats = useMemo(() => {
     const orgProjects = dashboardOrg === "all" ? prbr : prbr.filter(p => p.org === dashboardOrg);
@@ -1756,7 +1774,7 @@ export default function HelpDesk() {
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const d = new Date(today); d.setDate(today.getDate() - (days - 1 - i));
       const dEnd = new Date(d); dEnd.setHours(23, 59, 59, 999);
-      const dayKey = d.toISOString().split("T")[0];
+      const _p4 = n => String(n).padStart(2,"0"); const dayKey = `${d.getFullYear()}-${_p4(d.getMonth()+1)}-${_p4(d.getDate())}`;
       return {
         label: d.toLocaleDateString("en", { weekday: "short" }),
         value: (currentUser?.role === "Agent" ? null : serverDailyMap[dayKey]) ?? base.filter(t => {
@@ -1776,20 +1794,22 @@ export default function HelpDesk() {
 }, [dashboardData]);
 
   const dashboardClosingUsers = useMemo(() => {
+    const closedMap = dashboardStatsMap.closingUsers ?? agentStatsMap.closed;
     return users.filter(u => u.active !== false).map((u, i) => ({
       label: u.name,
-      value: agentStatsMap.closed[u.name] || 0,
+      value: closedMap[u.name] || 0,
       color: PIE_COLORS[i % PIE_COLORS.length]
     })).sort((a, b) => b.value - a.value).slice(0, 6);
-  }, [agentStatsMap, users]);
+  }, [agentStatsMap, dashboardStatsMap, users]);
 
   const dashboardClosingUsersFull = useMemo(() => {
+    const closedMap = dashboardStatsMap.closingUsers ?? agentStatsMap.closed;
     return users.filter(u => u.active !== false).map((u, i) => ({
       label: u.name,
-      value: agentStatsMap.closed[u.name] || 0,
+      value: closedMap[u.name] || 0,
       color: PIE_COLORS[i % PIE_COLORS.length]
     })).sort((a, b) => b.value - a.value);
-  }, [agentStatsMap, users]);
+  }, [agentStatsMap, dashboardStatsMap, users]);
 
   // ✅ NEW: Yearly data for reports (30+ days)
   const yearlyData = useMemo(() => {
@@ -2346,6 +2366,9 @@ export default function HelpDesk() {
             <React.Fragment key={n.id}>
               <button onClick={() => {
                 switchView(n.id);
+                if (n.id === "dashboard") {
+                  setDashboardRefreshTick(t => t + 1);
+                }
                 if (n.id === "tickets") {
                   setTvFilter("all");
                   setStatusF("All");
@@ -3130,6 +3153,8 @@ export default function HelpDesk() {
               setFilterAssignment={setFilterAssignment}
               setPriorityF={setPriorityF}
               setStatusF={setStatusF}
+              setTicketDateFrom={setTicketDateFrom}
+              dashboardTimePeriod={dashboardTimePeriod}
             />
           )}
 
@@ -3440,9 +3465,7 @@ export default function HelpDesk() {
   setPendingTicketStatus={setPendingTicketStatus}
   timelineTab={timelineTab}
   setTimelineTab={setTimelineTab}
-  closeTicketWithRemark={(ticketId, remark) => {
-    updateStatus(ticketId, "Closed", remark);
-  }}
+  closeTicketWithRemark={closeTicketWithRemark}
   compressImage={compressImage}
   showToast={showToast}
   addDailyNotif={addDailyNotif}
