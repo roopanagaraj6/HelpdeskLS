@@ -1498,6 +1498,14 @@ export default function HelpDesk() {
     if (!currentUser) return false;
     if (!SERVER_FILTERED_VIEWS.includes(cvd.id) && !cvd.filter(t, currentUser)) return false;
     if (cvd.id !== "bin" && t.status === "Bin") return false;
+    // Webcasts are local — apply manual filter for server-side views since server never returns them
+    if (SERVER_FILTERED_VIEWS.includes(cvd.id) && (String(t.id).startsWith("WEB-") || String(t.id).startsWith("WC-"))) {
+      if (cvd.id === "reopened") return (t.timeline || []).some(e => e.action === "Reopened");
+      if (cvd.id === "open") return t.status === "Open";
+      if (cvd.id === "closed") return t.status === "Closed";
+      if (cvd.id === "pastdue") { const due = t.dueDate && new Date(t.dueDate); const today = new Date(); today.setHours(0,0,0,0); return t.status === "Open" && due && due < today; }
+      if (cvd.id === "unassigned") return t.status === "Open" && (!t.assignees || t.assignees.length === 0);
+    }
     if (currentUser.role !== "Admin" && currentUser.role !== "Manager" && t.reportedBy !== currentUser.name && !t.assignees?.some(a => a.id === currentUser.id || a.name === currentUser.name)) return false;
     if (statusF !== "All" && t.status !== statusF) return false;
     if (priorityF !== "All" && t.priority !== priorityF) return false;
@@ -1630,8 +1638,9 @@ export default function HelpDesk() {
     return true;
   }), [tickets, cvd, currentUser, statusF, priorityF, search, orgFilter, deptFilter]);
 
-  const totalPages = Math.ceil(ticketTotalCount / TICKETS_PER_PAGE);
-
+  const webcastCount = filtered.filter(t => String(t.id).startsWith("WEB-") || String(t.id).startsWith("WC-")).length;
+  const effectiveTicketTotalCount = ticketTotalCount + webcastCount;
+  const totalPages = Math.ceil(effectiveTicketTotalCount / TICKETS_PER_PAGE);
   // Filter tickets by column filters
   const allSortedTickets = useMemo(() => filtered, [filtered]);
 
@@ -1681,44 +1690,56 @@ export default function HelpDesk() {
   // ✅ NEW: Dashboard stats (filtered by organization)
   const dashboardStats = useMemo(() => {
     const isAgent = currentUser?.role === "Agent" || currentUser?.role === "Viewer";
-    const unassigned = dashboardStatsMap.counts?.unassigned ?? 0;
+
+    // Webcast counts from local state (server stats never include Webcasts table)
+    const webcasts = tickets.filter(t =>
+      (String(t.id).startsWith("WEB-") || String(t.id).startsWith("WC-")) &&
+      t.status !== "Bin" &&
+      (dashboardOrg === "all" || t.org === dashboardOrg)
+    );
+    const wTotal      = webcasts.length;
+    const wOpen       = webcasts.filter(t => t.status === "Open").length;
+    const wClosed     = webcasts.filter(t => t.status === "Closed").length;
+    const wCritical   = webcasts.filter(t => t.priority === "Critical" && t.status === "Open").length;
+    const wReopened   = webcasts.filter(t => (t.timeline || []).some(e => e.action === "Reopened")).length;
+    const wUnassigned = webcasts.filter(t => t.status === "Open" && (!t.assignees || t.assignees.length === 0)).length;
 
     // Admin/Manager: always prefer server counts (fetched with correct org+dateFrom filters)
     if (!isAgent && dashboardStatsMap.counts) {
       return {
-        total: dashboardStatsMap.counts.total,
-        open: dashboardStatsMap.counts.open,
-        closed: dashboardStatsMap.counts.closed,
-        critical: dashboardStatsMap.counts.critical,
-        reopened: dashboardStatsMap.counts.reopened,
-        unassigned: dashboardStatsMap.counts.unassigned ?? 0,
+        total:      dashboardStatsMap.counts.total      + wTotal,
+        open:       dashboardStatsMap.counts.open       + wOpen,
+        closed:     dashboardStatsMap.counts.closed     + wClosed,
+        critical:   dashboardStatsMap.counts.critical   + wCritical,
+        reopened:   dashboardStatsMap.counts.reopened   + wReopened,
+        unassigned: (dashboardStatsMap.counts.unassigned ?? 0) + wUnassigned,
       };
     }
     // Admin/Manager fallback before dashboard stats load (initial page load, no filter)
     if (!isAgent && serverTicketCounts && dashboardOrg === "all" && dashboardTimePeriod === "all") {
-      const open = serverTicketCounts.byStatus?.find(r => r.status === "Open")?.cnt || 0;
+      const open   = serverTicketCounts.byStatus?.find(r => r.status === "Open")?.cnt || 0;
       const closed = serverTicketCounts.byStatus?.find(r => r.status === "Closed")?.cnt || 0;
       return {
-        total: serverTicketCounts.total,
-        open: parseInt(open),
-        closed: parseInt(closed),
-        critical: serverTicketCounts.critical,
-        reopened: serverTicketCounts.reopened,
-        unassigned,
+        total:      serverTicketCounts.total            + wTotal,
+        open:       parseInt(open)                      + wOpen,
+        closed:     parseInt(closed)                    + wClosed,
+        critical:   serverTicketCounts.critical         + wCritical,
+        reopened:   serverTicketCounts.reopened         + wReopened,
+        unassigned: (serverTicketCounts.unassigned ?? 0)+ wUnassigned,
       };
     }
     // Agent/Viewer: compute from local dashboardData (their own tickets only)
     let base = dashboardData;
     if (isAgent) base = base.filter(t => t.assignees?.some(a => a.id === currentUser?.id || a.name === currentUser?.name));
     return {
-      total: base.filter(x => x.status !== "Bin").length,
-      open: base.filter(x => x.status === "Open").length,
-      closed: base.filter(x => x.status === "Closed").length,
-      critical: base.filter(x => x.priority === "Critical" && x.status === "Open").length,
-      reopened: base.filter(x => (x.timeline || []).some(e => e.action === "Reopened" || (e.action?.includes("Status changed to Open") && (x.timeline||[]).some(prev => prev.action?.includes("Status changed to Closed"))))).length,
-      unassigned,
+      total:      base.filter(x => x.status !== "Bin").length,
+      open:       base.filter(x => x.status === "Open").length,
+      closed:     base.filter(x => x.status === "Closed").length,
+      critical:   base.filter(x => x.priority === "Critical" && x.status === "Open").length,
+      reopened:   base.filter(x => (x.timeline || []).some(e => e.action === "Reopened" || (e.action?.includes("Status changed to Open") && (x.timeline||[]).some(prev => prev.action?.includes("Status changed to Closed"))))).length,
+      unassigned: wUnassigned,
     };
-  }, [dashboardData, currentUser, serverTicketCounts, dashboardStatsMap, dashboardOrg, dashboardTimePeriod]);
+  }, [dashboardData, currentUser, serverTicketCounts, dashboardStatsMap, dashboardOrg, dashboardTimePeriod, tickets]);
 
   // For dashboard: Agents and Viewers only see stats for projects assigned to them
   const dashboardProjects = useMemo(() => {
@@ -3223,7 +3244,7 @@ export default function HelpDesk() {
           {view === "tickets" && (
             <TicketsView
               tickets={tickets} users={users} orgs={orgs}
-              ticketTotalCount={ticketTotalCount}
+              ticketTotalCount={effectiveTicketTotalCount}
               ticketsLoading={ticketsLoading}
               categories={categories} currentUser={currentUser}
               filtered={filtered} tvFilter={tvFilter} setTvFilter={setTvFilter}
