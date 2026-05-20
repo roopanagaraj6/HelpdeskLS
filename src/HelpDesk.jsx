@@ -465,7 +465,10 @@ export default function HelpDesk() {
           satsangType: t.satsangType || "",
           location: t.location || ""
         }));
-        setTickets(parsed);
+        setTickets(prev => {
+          const webcasts = prev.filter(t => String(t.id).startsWith("WEB-") || String(t.id).startsWith("WC-"));
+          return [...webcasts, ...parsed].sort((a, b) => b.created - a.created);
+        });
         setTicketTotalCount(res.data.total || 0);
         setTicketsLoading(false);
       })
