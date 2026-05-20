@@ -332,7 +332,7 @@ export function Modals(props) {
             ))}
           </div>
         )}
-        {projForm.category === "Webcast" && <WebcastFields f={projForm} setF={setProjForm} isProject={true} categories={categories} locations={locations} />}
+        {form.category === "Webcast" && <WebcastFields f={form} setF={setForm} isProject={false} categories={categories} locations={locations} />}
         <FF label="Summary" required><input style={iS} placeholder="Brief description of the issue" value={form.summary} onChange={e => setForm({ ...form, summary: e.target.value })} /></FF>
         <FF label="Description" required><textarea style={{ ...iS, height: 88, resize: "vertical" }} placeholder="Detailed description…" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></FF>
         {/* Attachment: Image */}
