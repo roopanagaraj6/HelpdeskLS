@@ -440,7 +440,7 @@ export default function HelpDesk() {
     }
 
     // Apply dashboard time period as dateFrom — takes priority over ticketDateFrom
-    if (dashboardTimePeriod && dashboardTimePeriod !== "all" && tvFilter !== "reopened") {
+    if (dashboardTimePeriod && dashboardTimePeriod !== "all" && tvFilter !== "reopened" && ticketDateFrom) {
       const cutoff = new Date();
       if (dashboardTimePeriod === "1d") cutoff.setHours(0, 0, 0, 0);
       else if (dashboardTimePeriod === "7d") cutoff.setDate(cutoff.getDate() - 7);
