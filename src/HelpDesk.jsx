@@ -913,7 +913,19 @@ export default function HelpDesk() {
           satsangType: t.satsangType || "",
           location: t.location || ""
       })).sort((a, b) => b.created - a.created);
-      setTickets(parsedTickets);
+      let parsedWebcasts = [];
+      try {
+        const webcastRes = await axios.get(`${BASE_URL}/webcasts`);
+        parsedWebcasts = (webcastRes.data || []).map(w => ({
+          ...w,
+          created: new Date(w.createdAt || w.created),
+          updated: new Date(w.updatedAt || w.updated),
+          satsangType: w.satsangType || "",
+          location: w.location || "",
+          isWebcast: true,
+        }));
+      } catch (_) {}
+      setTickets([...parsedWebcasts, ...parsedTickets].sort((a, b) => b.created - a.created));
       setTicketTotalCount(ticketRes.data.total || 0);
       setSatsangs(data.satsangs || []);
 
@@ -980,6 +992,27 @@ export default function HelpDesk() {
     return () => { cancelled = true; clearTimeout(timeout); };
   }, []);
 
+  useEffect(() => {
+    if (view !== "webcast" || !currentUser) return;
+    axios.get(`${BASE_URL}/webcasts`)
+      .then(res => {
+        const webcasts = (res.data || []).map(w => ({
+          ...w,
+          created: new Date(w.createdAt || w.created),
+          updated: new Date(w.updatedAt || w.updated),
+          satsangType: w.satsangType || "",
+          location: w.location || "",
+          isWebcast: true,
+        }));
+        setTickets(prev => {
+          // Keep non-webcast tickets; replace all WEB-/WC- entries with fresh fetch
+          const nonWebcast = prev.filter(t => !String(t.id).startsWith("WEB-") && !String(t.id).startsWith("WC-"));
+          return [...webcasts, ...nonWebcast].sort((a, b) => b.created - a.created);
+        });
+      })
+      .catch(e => console.error("Failed to load webcasts:", e));
+  }, [view, currentUser]);
+
   // Silent background refresh on page navigation — no loading spinner
   const silentRefresh = async () => {
     try {
@@ -998,7 +1031,21 @@ export default function HelpDesk() {
       try { const r = await axios.get(`${BASE_URL}/departments`); setDepartments(r.data || []); } catch (_) {}
       try { const r = await axios.get(LOCATIONS_API); setLocations(r.data || []); } catch (_) {}
       try { const r = await axios.get(VENDORS_API); setVendors(r.data || []); } catch (_) {}
-      // tickets/projects NOT fetched here — load via paginated endpoints per view
+      try {
+        const r = await axios.get(`${BASE_URL}/webcasts`);
+        const parsedWebcasts = (r.data || []).map(w => ({
+          ...w,
+          created: new Date(w.createdAt || w.created),
+          updated: new Date(w.updatedAt || w.updated),
+          satsangType: w.satsangType || "",
+          location: w.location || "",
+          isWebcast: true,
+        }));
+        setTickets(prev => {
+          const nonWebcast = prev.filter(t => !String(t.id).startsWith("WEB-") && !String(t.id).startsWith("WC-"));
+          return [...parsedWebcasts, ...nonWebcast].sort((a, b) => b.created - a.created);
+        });
+      } catch (_) {}
     } catch (e) { console.error("Silent refresh failed:", e); }
 };
 
@@ -3368,6 +3415,7 @@ export default function HelpDesk() {
   showLocationDD={showLocationDD} setShowLocationDD={setShowLocationDD}
   showAssigneeDD={showAssigneeDD} setShowAssigneeDD={setShowAssigneeDD}
   assigneeSearch={assigneeSearch} setAssigneeSearch={setAssigneeSearch}
+  showTicketAssigneeDD={showTicketAssigneeDD} setShowTicketAssigneeDD={setShowTicketAssigneeDD}
   showNewProject={showNewProject} setShowNewProject={setShowNewProject}
   projForm={projForm} setProjForm={setProjForm}
   handleProjectSubmit={handleProjectSubmit}

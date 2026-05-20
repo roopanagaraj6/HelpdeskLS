@@ -11,9 +11,7 @@ import { PRIORITIES, STATUSES, iS, sS, bP, bG } from "../constants/constants";
  * Forward, Vendor, Timeline, Location, Remark/Close,
  * AttrLayout, ActivityLog, SessionHistory, AddUser, AddVendor.
  */
-const SATSANG_TYPES = ["Satsang", "Bhandara", "Samagam", "Special Program", "Other"];
-
-  function WebcastFields({ f, setF, isProject, categories }) {
+function WebcastFields({ f, setF, isProject, categories, locations }) {
   const webcastCat = (categories || []).find(c => c.name === "Webcast");
   const satsangTypes = webcastCat?.subcategories || [];
   return (
@@ -23,18 +21,20 @@ const SATSANG_TYPES = ["Satsang", "Bhandara", "Samagam", "Special Program", "Oth
         <select style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1.5px solid #e2e8f0", fontSize: 13 }}
           value={f.satsangType || ""} onChange={e => setF({ ...f, satsangType: e.target.value })}>
           <option value="">Select type…</option>
-          {SATSANG_TYPES.map(t => <option key={t}>{t}</option>)}
+          {satsangTypes.map(t => <option key={t}>{t}</option>)}
         </select>
       </div>
       <div>
         <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Webcast Location <span style={{ color: "#ef4444" }}>*</span></label>
-        <input style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1.5px solid #e2e8f0", fontSize: 13, boxSizing: "border-box" }}
-          placeholder="Enter location…" value={f.location || ""} onChange={e => setF({ ...f, location: e.target.value })} />
+        <select style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1.5px solid #e2e8f0", fontSize: 13 }}
+          value={f.location || ""} onChange={e => setF({ ...f, location: e.target.value })}>
+          <option value="">Select location…</option>
+          {(locations || []).map(l => <option key={l.id || l.name} value={l.name}>{l.name}</option>)}
+        </select>
       </div>
     </div>
   );
 }
-
 export function Modals(props) {
   const {
     // shared
@@ -332,7 +332,7 @@ export function Modals(props) {
             ))}
           </div>
         )}
-        {form.category === "Webcast" && <WebcastFields f={form} setF={setForm} isProject={false} categories={categories} />}
+        {projForm.category === "Webcast" && <WebcastFields f={projForm} setF={setProjForm} isProject={true} categories={categories} locations={locations} />}
         <FF label="Summary" required><input style={iS} placeholder="Brief description of the issue" value={form.summary} onChange={e => setForm({ ...form, summary: e.target.value })} /></FF>
         <FF label="Description" required><textarea style={{ ...iS, height: 88, resize: "vertical" }} placeholder="Detailed description…" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></FF>
         {/* Attachment: Image */}
@@ -482,7 +482,7 @@ export function Modals(props) {
             </div>}
           </div>
         </FF>
-        {projForm.category === "Webcast" && <WebcastFields f={projForm} setF={setProjForm} isProject={true} categories={categories} />}
+        {projForm.category === "Webcast" && <WebcastFields f={projForm} setF={setProjForm} isProject={true} categories={categories} locations={locations} />}
         <FF label="Project Title" required><input style={iS} placeholder="Brief project name" value={projForm.title} onChange={e => setProjForm({ ...projForm, title: e.target.value })} /></FF>
         <FF label="Description" required><textarea style={{ ...iS, height: 88, resize: "vertical" }} placeholder="Detailed description…" value={projForm.description} onChange={e => setProjForm({ ...projForm, description: e.target.value })} /></FF>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 9, marginTop: 6 }}>
@@ -677,12 +677,12 @@ export function Modals(props) {
                       <div style={{ padding: 8, borderBottom: "1px solid #f1f5f9", position: "sticky", top: 0, background: "#fff" }}>
                         <input type="text" placeholder="Search assignees..." value={assigneeSearch} onChange={e => setAssigneeSearch(e.target.value)} onClick={e => e.stopPropagation()} autoFocus style={{ ...iS, width: "100%", fontSize: 12 }} />
                       </div>
-                      {users.filter(u => u.active && (assigneeSearch === "" || u.name.toLowerCase().includes(assigneeSearch.toLowerCase())) && !selTicket.assignees?.find(a => a.id === u.id)).map(u => (
+                      {users.filter(u => u.active != false && (assigneeSearch === "" || u.name.toLowerCase().includes(assigneeSearch.toLowerCase())) && !selTicket.assignees?.find(a => a.id === u.id || String(a.id) === String(u.id))).map(u => (
                         <div key={u.id} onClick={async () => { const updated = { ...selTicket, assignees: [...(selTicket.assignees || []), u], updated: new Date().toISOString() }; try { const apiUrl = isTrueWebcast(selTicket) ? `${BASE_URL}/webcasts/${selTicket.id}` : `${TICKETS_API}/${selTicket.id}`; await axios.put(apiUrl, updated); setTickets(t => t.map(x => x.id === selTicket.id ? { ...updated, updated: new Date(updated.updated) } : x)); setSelTicket(updated); setEditTicket(prev => prev ? { ...prev, assignees: updated.assignees } : prev); setAssigneeSearch(""); setShowTicketAssigneeDD(false); setCustomAlert({ show: true, message: `✅ Ticket ${selTicket.id} assigned to ${u.name}`, type: "success" }); } catch (e) { setCustomAlert({ show: true, message: "Failed to add assignee", type: "error" }); } }} style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 12px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
                           <Avatar name={u.name} size={24} /><div><div style={{ fontSize: 12, fontWeight: 600 }}>{u.name}</div><div style={{ fontSize: 11, color: "#94a3b8" }}>{u.role}</div></div>
                         </div>
                       ))}
-                      {users.filter(u => u.active && (assigneeSearch === "" || u.name.toLowerCase().includes(assigneeSearch.toLowerCase())) && !selTicket.assignees?.find(a => a.id === u.id)).length === 0 && <div style={{ padding: "12px", textAlign: "center", fontSize: 12, color: "#94a3b8" }}>No available users</div>}
+                      {users.filter(u => u.active != false && (assigneeSearch === "" || u.name.toLowerCase().includes(assigneeSearch.toLowerCase())) && !selTicket.assignees?.find(a => a.id === u.id || String(a.id) === String(u.id))).length === 0 && <div style={{ padding: "12px", textAlign: "center", fontSize: 12, color: "#94a3b8" }}>No available users</div>}
                     </div>
                   </>}
                 </div>
