@@ -1396,12 +1396,35 @@ app.get("/api/tickets/paginated", async (req, res) => {
             if (dateTo)   where[dateField][Op.lte] = new Date(dateTo.includes("T")   ? dateTo   : dateTo   + "T23:59:59");
         }
 
-        // Reopened filter — remove any createdAt dateFrom constraint so old reopened tickets show
+        // Reopened filter — filter by reopen event date when dateFrom is provided
         if (req.query.reopened === "1") {
             delete where[dateField];
-            where[Op.and] = [...(where[Op.and] || []),
-                sequelize.literal(`JSON_SEARCH(timeline, 'one', 'Reopened', NULL, '$[*].action') IS NOT NULL`)
-            ];
+            if (dateFrom) {
+                const escapedDate = sequelize.escape(dateFrom.includes("T") ? dateFrom : dateFrom + "T00:00:00");
+                where[Op.and] = [...(where[Op.and] || []),
+                    sequelize.literal(`EXISTS (
+                        SELECT 1 FROM JSON_TABLE(timeline, '$[*]' COLUMNS(
+                            action VARCHAR(255) PATH '$.action',
+                            evt_date VARCHAR(50) PATH '$.date'
+                        )) jt
+                        WHERE jt.action = 'Reopened'
+                        AND CONVERT_TZ(
+                            CASE
+                                WHEN jt.evt_date REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2}T'
+                                    THEN STR_TO_DATE(LEFT(jt.evt_date, 19), '%Y-%m-%dT%H:%i:%s')
+                                WHEN jt.evt_date LIKE '__/__/____,%'
+                                    THEN STR_TO_DATE(LEFT(jt.evt_date, 19), '%d/%m/%Y, %H:%i:%s')
+                                ELSE NULL
+                            END,
+                            '+00:00', '+05:30'
+                        ) >= ${escapedDate}
+                    )`)
+                ];
+            } else {
+                where[Op.and] = [...(where[Op.and] || []),
+                    sequelize.literal(`JSON_SEARCH(timeline, 'one', 'Reopened', NULL, '$[*].action') IS NOT NULL`)
+                ];
+            }
         }
 
         // Past due filter
