@@ -2137,14 +2137,25 @@ function calcNextRun(task, fromDate) {
     if (task.frequency === "daily") {
         next.setHours(hh, mm, 0, 0);
         if (next <= now) next.setDate(next.getDate() + 1);
-    } else if (task.frequency === "weekly" || task.frequency === "biweekly") {
-        const target = task.dayOfWeek != null ? task.dayOfWeek : 1;
-        let days = (7 + target - next.getDay()) % 7;
-        if (days === 0) days = 7;
-        next.setDate(next.getDate() + days);
-        next.setHours(hh, mm, 0, 0);
-        if (task.frequency === "biweekly") next.setDate(next.getDate() + 7);
-    } else if (task.frequency === "monthly") {
+    } else if (task.frequency === "weekly") {
+    const target = task.dayOfWeek != null ? task.dayOfWeek : 1;
+    let days = (7 + target - next.getDay()) % 7;
+    next.setDate(next.getDate() + days);
+    next.setHours(hh, mm, 0, 0);
+    if (next <= now) next.setDate(next.getDate() + 7);
+    } else if (task.frequency === "biweekly") {
+        const targets = (task.daysOfWeek && task.daysOfWeek.length === 2) ? task.daysOfWeek : [1, 4];
+        let best = null;
+        for (const target of targets) {
+            let days = (7 + target - now.getDay()) % 7;
+            const candidate = new Date(now);
+            candidate.setDate(candidate.getDate() + days);
+            candidate.setHours(hh, mm, 0, 0);
+            if (candidate <= now) candidate.setDate(candidate.getDate() + 7);
+            if (!best || candidate < best) best = candidate;
+        }
+        return best;
+    }else if (task.frequency === "monthly") {
         const dom = task.dayOfMonth != null ? task.dayOfMonth : 1;
         next.setDate(dom); next.setHours(hh, mm, 0, 0);
         if (next <= now) { next.setMonth(next.getMonth() + 1); next.setDate(dom); }
