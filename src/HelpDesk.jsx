@@ -466,10 +466,7 @@ export default function HelpDesk() {
           location: t.location || "",
           assignees: Array.isArray(t.assignees) ? t.assignees : (typeof t.assignees === "string" ? JSON.parse(t.assignees) : []),
         }));
-        setTickets(prev => {
-          const webcasts = prev.filter(t => String(t.id).startsWith("WEB-") || String(t.id).startsWith("WC-"));
-          return [...webcasts, ...parsed].sort((a, b) => b.created - a.created);
-        });
+        setTickets(parsed.sort((a, b) => b.created - a.created));
         setTicketTotalCount(res.data.total || 0);
         setTicketsLoading(false);
       })
@@ -918,19 +915,7 @@ export default function HelpDesk() {
           location: t.location || "",
           assignees: Array.isArray(t.assignees) ? t.assignees : (typeof t.assignees === "string" ? JSON.parse(t.assignees) : []),
       })).sort((a, b) => b.created - a.created);
-      let parsedWebcasts = [];
-      try {
-        const webcastRes = await axios.get(`${BASE_URL}/webcasts`);
-        parsedWebcasts = (webcastRes.data || []).map(w => ({
-          ...w,
-          created: new Date(w.createdAt || w.created),
-          updated: new Date(w.updatedAt || w.updated),
-          satsangType: w.satsangType || "",
-          location: w.location || "",
-          isWebcast: true,
-        }));
-      } catch (_) {}
-      setTickets([...parsedWebcasts, ...parsedTickets].sort((a, b) => b.created - a.created));
+      setTickets(parsedTickets);
       setTicketTotalCount(ticketRes.data.total || 0);
       setSatsangs(data.satsangs || []);
 
@@ -997,26 +982,7 @@ export default function HelpDesk() {
     return () => { cancelled = true; clearTimeout(timeout); };
   }, []);
 
-  useEffect(() => {
-    if (view !== "webcast" || !currentUser) return;
-    axios.get(`${BASE_URL}/webcasts`)
-      .then(res => {
-        const webcasts = (res.data || []).map(w => ({
-          ...w,
-          created: new Date(w.createdAt || w.created),
-          updated: new Date(w.updatedAt || w.updated),
-          satsangType: w.satsangType || "",
-          location: w.location || "",
-          isWebcast: true,
-        }));
-        setTickets(prev => {
-          // Keep non-webcast tickets; replace all WEB-/WC- entries with fresh fetch
-          const nonWebcast = prev.filter(t => !String(t.id).startsWith("WEB-") && !String(t.id).startsWith("WC-"));
-          return [...webcasts, ...nonWebcast].sort((a, b) => b.created - a.created);
-        });
-      })
-      .catch(e => console.error("Failed to load webcasts:", e));
-  }, [view, currentUser]);
+
 
   // Silent background refresh on page navigation — no loading spinner
   const silentRefresh = async () => {
@@ -1036,21 +1002,6 @@ export default function HelpDesk() {
       try { const r = await axios.get(`${BASE_URL}/departments`); setDepartments(r.data || []); } catch (_) {}
       try { const r = await axios.get(LOCATIONS_API); setLocations(r.data || []); } catch (_) {}
       try { const r = await axios.get(VENDORS_API); setVendors(r.data || []); } catch (_) {}
-      try {
-        const r = await axios.get(`${BASE_URL}/webcasts`);
-        const parsedWebcasts = (r.data || []).map(w => ({
-          ...w,
-          created: new Date(w.createdAt || w.created),
-          updated: new Date(w.updatedAt || w.updated),
-          satsangType: w.satsangType || "",
-          location: w.location || "",
-          isWebcast: true,
-        }));
-        setTickets(prev => {
-          const nonWebcast = prev.filter(t => !String(t.id).startsWith("WEB-") && !String(t.id).startsWith("WC-"));
-          return [...parsedWebcasts, ...nonWebcast].sort((a, b) => b.created - a.created);
-        });
-      } catch (_) {}
     } catch (e) { console.error("Silent refresh failed:", e); }
 };
 
@@ -1490,18 +1441,17 @@ export default function HelpDesk() {
   const cvd = TICKET_VIEWS.find(v => v.id === effectiveTvFilter) || TICKET_VIEWS[6];
   const cpv = PROJECT_VIEWS.find(v => v.id === pvFilter) || PROJECT_VIEWS[5];
 
-  // ✅ A ticket is a TRUE webcast only if isWebcast=true OR ID starts with WEB- or WC-
-  // TKT- tickets with category "Webcast" are regular tickets that got migrated — NOT webcasts
+  // A ticket is a webcast if category === "Webcast" or isWebcast === true
   const isTrueWebcast = (t) =>
-  (String(t.id).startsWith("WEB-") || String(t.id).startsWith("WC-"));
+    t.category === "Webcast" || t.isWebcast === true;
 
   const SERVER_FILTERED_VIEWS = ["open", "closed", "reopened", "pastdue", "unassigned"];
   const filtered = useMemo(() => tickets.filter(t => {
     if (!currentUser) return false;
     if (!SERVER_FILTERED_VIEWS.includes(cvd.id) && !cvd.filter(t, currentUser)) return false;
     if (cvd.id !== "bin" && t.status === "Bin") return false;
-    // Webcasts are local — apply manual filter for server-side views since server never returns them
-    if (SERVER_FILTERED_VIEWS.includes(cvd.id) && (String(t.id).startsWith("WEB-") || String(t.id).startsWith("WC-"))) {
+    // Webcasts (isWebcast/category=Webcast) are loaded locally — apply manual filter for server-side views
+    if (SERVER_FILTERED_VIEWS.includes(cvd.id) && isTrueWebcast(t)) {
       if (cvd.id === "reopened") return (t.timeline || []).some(e => e.action === "Reopened");
       if (cvd.id === "open") return t.status === "Open";
       if (cvd.id === "closed") return t.status === "Closed";
@@ -1640,7 +1590,7 @@ export default function HelpDesk() {
     return true;
   }), [tickets, cvd, currentUser, statusF, priorityF, search, orgFilter, deptFilter]);
 
-  const webcastCount = filtered.filter(t => String(t.id).startsWith("WEB-") || String(t.id).startsWith("WC-")).length;
+  const webcastCount = filtered.filter(t => isTrueWebcast(t)).length;
   const effectiveTicketTotalCount = ticketTotalCount + webcastCount;
   const totalPages = Math.ceil(effectiveTicketTotalCount / TICKETS_PER_PAGE);
   // Filter tickets by column filters
@@ -1695,7 +1645,7 @@ export default function HelpDesk() {
 
     // Webcast counts from local state (server stats never include Webcasts table)
     const webcasts = tickets.filter(t =>
-      (String(t.id).startsWith("WEB-") || String(t.id).startsWith("WC-")) &&
+      isTrueWebcast(t) &&
       t.status !== "Bin" &&
       (dashboardOrg === "all" || t.org === dashboardOrg)
     );
@@ -1703,7 +1653,7 @@ export default function HelpDesk() {
     const wOpen       = webcasts.filter(t => t.status === "Open").length;
     const wClosed     = webcasts.filter(t => t.status === "Closed").length;
     const wCritical   = webcasts.filter(t => t.priority === "Critical" && t.status === "Open").length;
-    const wReopened   = webcasts.filter(t => (t.timeline || []).some(e => e.action === "Reopened")).length;
+    const wReopened = webcasts.filter(t => { const tl = Array.isArray(t.timeline) ? t.timeline : (typeof t.timeline === "string" ? JSON.parse(t.timeline || "[]") : []); return tl.some(e => e.action === "Reopened"); }).length;
     const wUnassigned = webcasts.filter(t => t.status === "Open" && (!t.assignees || t.assignees.length === 0)).length;
 
     // Admin/Manager: always prefer server counts (fetched with correct org+dateFrom filters)
@@ -1924,11 +1874,11 @@ export default function HelpDesk() {
       <div style={{ background: "#fff7ed", borderRadius: 9, border: "1px solid #fed7aa", padding: "12px 14px", marginBottom: 14 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: "#9a3412", marginBottom: 12 }}>📡 Webcast Details (Required)</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 14px" }}>
-          <FF label="Satsang Type" required>
+          <FF label="Sub Category" required>
             <div style={{ position: "relative" }}>
               <input
                 type="text"
-                placeholder="Search satsang type..."
+                placeholder="Search sub category..."
                 value={satsangSearch || f.satsangType}
                 onChange={e => setSatsangSearch(e.target.value)}
                 onFocus={() => setShowDD(true)}
@@ -1941,7 +1891,7 @@ export default function HelpDesk() {
                     const webcastCat = categories.find(c => c.name === "Webcast");
                     const subcats = (webcastCat?.subcategories || []).filter(t => satsangSearch === "" || t.toLowerCase().includes(satsangSearch.toLowerCase()));
                     return subcats.length === 0
-                      ? <div style={{ padding: "12px", textAlign: "center", fontSize: 12, color: "#94a3b8" }}>No satsang types found. Add via Settings → Categories → Webcast.</div>
+                      ? <div style={{ padding: "12px", textAlign: "center", fontSize: 12, color: "#94a3b8" }}>No sub categories found. Add via Settings → Categories → Webcast.</div>
                       : subcats.map(t => (
                           <div key={t} onClick={() => { setF({ ...f, satsangType: t }); setShowDD(false); setSatsangSearch(""); }} onMouseDown={e => e.preventDefault()} style={{ padding: "10px 12px", cursor: "pointer", borderBottom: "1px solid #f1f5f9", backgroundColor: f.satsangType === t ? "#eff6ff" : "transparent" }}>
                             <div style={{ fontSize: 12, fontWeight: 600 }}>{t}</div>

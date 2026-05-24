@@ -151,30 +151,8 @@ const Ticket = sequelize.define("Ticket", {
     closedAt: { type: DataTypes.DATE, defaultValue: null },
 }, { timestamps: true });
 
-const Webcast = sequelize.define("Webcast", {
-    id: { type: DataTypes.STRING, primaryKey: true, unique: true },
-    summary: { type: DataTypes.STRING, allowNull: false },
-    description: { type: DataTypes.TEXT },
-    org: { type: DataTypes.STRING, defaultValue: "" },
-    department: { type: DataTypes.STRING, defaultValue: "" },
-    contact: { type: DataTypes.STRING, defaultValue: "" },
-    reportedBy: { type: DataTypes.STRING, defaultValue: "" },
-    assignees: { type: DataTypes.JSON, defaultValue: [] },
-    cc: { type: DataTypes.JSON, defaultValue: [] },
-    priority: { type: DataTypes.STRING, defaultValue: "Medium" },
-    category: { type: DataTypes.STRING, defaultValue: "Webcast" },
-    status: { type: DataTypes.STRING, defaultValue: "Open" },
-    customAttrs: { type: DataTypes.JSON, defaultValue: {} },
-    isWebcast: { type: DataTypes.BOOLEAN, defaultValue: true },
-    satsangType: { type: DataTypes.STRING, defaultValue: "" },
-    location: { type: DataTypes.STRING, defaultValue: "" },
-    timeline: { type: DataTypes.JSON, defaultValue: [] },
-    comments: { type: DataTypes.JSON, defaultValue: [] },
-    vendor: { type: DataTypes.JSON, defaultValue: null },
-    dueDate: { type: DataTypes.DATE, defaultValue: null },
-    image: { type: DataTypes.TEXT("long"), defaultValue: null },
-    satsangId: { type: DataTypes.INTEGER, defaultValue: null },
-}, { timestamps: true });
+// NOTE: Webcast model removed — webcast tickets are now stored in the Tickets table
+// with category="Webcast" and isWebcast=true. The old Webcasts table is no longer used.
 
 const Project = sequelize.define("Project", {
     id: { type: DataTypes.STRING, primaryKey: true, unique: true },
@@ -313,6 +291,11 @@ const fmt = (doc) => {
     if (!doc) return null;
     const obj = doc.get ? doc.get({ plain: true }) : { ...doc };
     if (obj.password) delete obj.password;
+    ["timeline","comments","assignees","cc","customAttrs","vendor"].forEach(f => {
+        if (typeof obj[f] === "string") {
+            try { obj[f] = JSON.parse(obj[f]); } catch { obj[f] = []; }
+        }
+    });
     return obj;
 };
 
@@ -1075,6 +1058,15 @@ app.post("/api/tickets", async (req, res) => {
         if (!req.body.org || !req.body.org.trim()) {
             return res.status(400).json({ error: "Organisation is required" });
         }
+        // Webcast tickets require satsangType and location
+        if (req.body.category === "Webcast") {
+            if (!req.body.satsangType || !String(req.body.satsangType).trim()) {
+                return res.status(400).json({ error: "Satsang Type is required for Webcast tickets" });
+            }
+            if (!req.body.location || !String(req.body.location).trim()) {
+                return res.status(400).json({ error: "Location is required for Webcast tickets" });
+            }
+        }
 
         // Generate next TKT-XXXX id
         const [maxRow] = await sequelize.query(
@@ -1105,8 +1097,10 @@ app.post("/api/tickets", async (req, res) => {
         if (req.body.image !== undefined) ticketData.image = req.body.image || null;
         if (req.body.satsangId !== undefined) ticketData.satsangId = req.body.satsangId || null;
 
-        // Handle boolean isWebcast
-        if (req.body.isWebcast !== undefined) {
+        // Handle boolean isWebcast — automatically true for Webcast category
+        if (req.body.category === "Webcast") {
+            ticketData.isWebcast = true;
+        } else if (req.body.isWebcast !== undefined) {
             ticketData.isWebcast = req.body.isWebcast === true || req.body.isWebcast === "true";
         }
 
@@ -1176,15 +1170,11 @@ app.post("/api/tickets", async (req, res) => {
 
 app.put("/api/tickets/:id", async (req, res) => {
     try {
-        if (req.params.id.startsWith("WEB-")) {
-            const webcast = await Webcast.findByPk(req.params.id);
-            if (!webcast) return res.status(404).json({ error: "Ticket not found" });
-            await webcast.update(req.body);
-            return res.json(fmt(webcast));
-        }
         const ticket = await Ticket.findByPk(req.params.id);
         if (!ticket) return res.status(404).json({ error: "Ticket not found" });
         const updateData = { ...req.body };
+        // Auto-set isWebcast when category is updated to Webcast
+        if (updateData.category === "Webcast") updateData.isWebcast = true;
         if (updateData.status === "Closed" && !ticket.closedAt && !updateData.closedAt) updateData.closedAt = new Date();
         if (updateData.status && updateData.status !== "Closed") updateData.closedAt = null;
         await ticket.update(updateData);
@@ -1203,7 +1193,6 @@ app.delete("/api/tickets/:id", async (req, res) => {
 app.delete("/api/tickets", async (req, res) => {
     try {
         const count = await Ticket.destroy({ where: {}, truncate: false });
-        await Webcast.destroy({ where: {}, truncate: false });
         res.json({ success: true, deleted: count });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -1541,76 +1530,28 @@ app.get("/api/tickets/counts", async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ✅ NEW: Webcast Endpoints
+// /api/webcasts/* — redirected to /api/tickets (webcasts are now stored in Tickets table)
 app.get("/api/webcasts", async (req, res) => {
     try {
-        const webcasts = await Webcast.findAll({ order: [['createdAt', 'DESC']] });
+        const webcasts = await Ticket.findAll({ where: { isWebcast: true }, order: [['createdAt', 'DESC']] });
         res.json(webcasts.map(fmt));
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
-
-app.post("/api/webcasts", async (req, res) => {
-    try {
-        if (!req.body.summary || !req.body.summary.trim()) {
-            return res.status(400).json({ error: "Summary is required" });
-        }
-
-        // Generate WEB-XXXX id
-        const allWebcasts = await Webcast.findAll({
-            where: { id: { [Op.like]: "WEB-%" } }
-        });
-        const sequential = allWebcasts.filter(w => {
-            const parts = w.id.split("-");
-            return parts.length === 2 && /^\d+$/.test(parts[1]);
-        });
-        let nextIdNum = 1001;
-        if (sequential.length > 0) {
-            const nums = sequential.map(w => parseInt(w.id.split("-")[1], 10)).filter(n => !isNaN(n));
-            if (nums.length > 0) nextIdNum = Math.max(...nums) + 1;
-        }
-        let webcastIdCheck = `WEB-${String(nextIdNum).padStart(4, "0")}`;
-        while (await Webcast.findByPk(webcastIdCheck)) {
-            nextIdNum++;
-            webcastIdCheck = `WEB-${String(nextIdNum).padStart(4, "0")}`;
-        }
-        const webcastId = `WEB-${String(nextIdNum).padStart(4, "0")}`;
-
-        // ✅ STRICT WHITELIST — only pass fields the Webcast model actually has
-        const webcastData = {
-            id: webcastId,
-            summary: req.body.summary.trim(),
-        };
-        const ALLOWED = [
-            "description", "org", "department", "contact", "reportedBy",
-            "assignees", "cc", "priority", "category", "status",
-            "customAttrs", "isWebcast", "satsangType", "location",
-            "timeline", "comments", "vendor", "dueDate", "image", "satsangId"
-        ];
-        for (const key of ALLOWED) {
-            if (req.body[key] !== undefined) webcastData[key] = req.body[key];
-        }
-
-        const webcast = await Webcast.create(webcastData);
-        res.status(201).json(fmt(webcast));
-    } catch (err) {
-        console.error("Webcast creation error:", err.message);
-        res.status(500).json({ error: err.message || "Failed to create webcast" });
-    }
-});
-
 app.put("/api/webcasts/:id", async (req, res) => {
     try {
-        const webcast = await Webcast.findByPk(req.params.id);
-        if (!webcast) return res.status(404).json({ error: "Webcast not found" });
-        await webcast.update(req.body);
-        res.json(fmt(webcast));
+        const ticket = await Ticket.findByPk(req.params.id);
+        if (!ticket) return res.status(404).json({ error: "Ticket not found" });
+        const updateData = { ...req.body };
+        if (updateData.status === "Closed" && !ticket.closedAt && !updateData.closedAt) updateData.closedAt = new Date();
+        if (updateData.status && updateData.status !== "Closed") updateData.closedAt = null;
+        await ticket.update(updateData);
+        res.json(fmt(ticket));
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
-
 app.delete("/api/webcasts/:id", async (req, res) => {
     try {
-        const webcast = await Webcast.findByPk(req.params.id);
-        if (webcast) await webcast.destroy();
+        const ticket = await Ticket.findByPk(req.params.id);
+        if (ticket) await ticket.destroy();
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -1723,7 +1664,6 @@ app.post("/api/import/:table", async (req, res) => {
 
         const models = {
             tickets: Ticket,
-            webcasts: Webcast,
             satsangs: Satsang,
             orgs: Org,
             categories: Category,
@@ -1742,10 +1682,9 @@ app.post("/api/import/:table", async (req, res) => {
         const validColumns = Object.keys(Model.rawAttributes);
 
         // ─── TICKETS, WEBCASTS & PROJECTS IMPORT LOGIC ────────────
-        if (table === "tickets" || table === "webcasts" || table === "projects") {
+        if (table === "tickets" || table === "projects") {
 
             let prefix = "TKT";
-            if (table === "webcasts") prefix = "WEB";
             if (table === "projects") prefix = "PRJ";
 
             const lastRecord = await Model.findOne({
@@ -1778,6 +1717,17 @@ app.post("/api/import/:table", async (req, res) => {
 
                 // Skip completely empty rows
                 if (Object.keys(cleanItem).length === 0) continue;
+
+                // Webcast rows: enforce isWebcast=true and default satsangType + location
+                if (cleanItem.category === "Webcast" || cleanItem.isWebcast === true || cleanItem.isWebcast === "true") {
+                    cleanItem.isWebcast = true;
+                    if (!cleanItem.satsangType || !String(cleanItem.satsangType).trim()) {
+                        cleanItem.satsangType = "Satsang With GuruDev";
+                    }
+                    if (!cleanItem.location || !String(cleanItem.location).trim()) {
+                        cleanItem.location = "Amphitheater";
+                    }
+                }
 
                 // 3. Force Organization to VVMVP (overrides whatever the CSV says)
                 //cleanItem.org = "VVMVP";
@@ -1875,7 +1825,7 @@ app.post("/api/import/:table", async (req, res) => {
 // Original "Full Bundle" Import (kept for backward compatibility with full backups)
 app.post("/api/all-data/import", async (req, res) => {
     try {
-        const { users = [], orgs = [], categories = [], customAttrs = [], tickets = [], webcasts = [], satsangs = [], projects = [], departments = [], locations = [] } = req.body;
+        const { users = [], orgs = [], categories = [], customAttrs = [], tickets = [], satsangs = [], projects = [], departments = [], locations = [] } = req.body;
 
         const merge = async (model, data, field) => {
             for (const item of data) {
@@ -1889,7 +1839,6 @@ app.post("/api/all-data/import", async (req, res) => {
         if (categories.length) await merge(Category, categories, 'name');
         if (customAttrs.length) await merge(CustomAttr, customAttrs, 'name');
         if (tickets.length) await merge(Ticket, tickets, 'id');
-        if (webcasts.length) await merge(Webcast, webcasts, 'id');
         if (satsangs.length) await merge(Satsang, satsangs, 'name');
         if (projects.length) await merge(Project, projects, 'id');
         if (departments.length) await merge(Department, departments, 'name');
@@ -1959,118 +1908,27 @@ function pushSSE(userId, data) {
   if (client) client.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
-// ─── ✅ WEBCAST MIGRATION FUNCTION ────────────────────────────────────────────
-// Automatic Webcast Migration on Server Startup
 async function migrateWebcastsOnStartup() {
     try {
-        console.log("\n🔄 === WEBCAST MIGRATION STARTING ===\n");
-
-        // Step 1: Ensure Webcast category exists
-        const [webcastCategory, categoryCreated] = await Category.findOrCreate({
+        // Ensure Webcast category exists
+        await Category.findOrCreate({
             where: { name: 'Webcast' },
             defaults: { name: 'Webcast', color: '#f97316' }
         });
 
-        if (categoryCreated) {
-            console.log("✅ Created new Webcast category (Color: #f97316)");
-        } else {
-            console.log("✅ Webcast category already exists");
-        }
-
-        // Step 2: Get all Webcast records
-        const webcasts = await Webcast.findAll();
-        console.log(`\n📊 Found ${webcasts.length} webcast record(s) to migrate\n`);
-
-        if (webcasts.length === 0) {
-            console.log("✅ No webcast records to migrate\n");
-            console.log("🔄 === WEBCAST MIGRATION COMPLETE ===\n");
-            return;
-        }
-
-        // Step 3: Copy each Webcast to Ticket table
-        let migrated = 0;
-        let skipped = 0;
-        let errors = 0;
-
-        for (const webcast of webcasts) {
-            try {
-                // Check if ticket with same ID already exists
-                const existingTicket = await Ticket.findByPk(webcast.id);
-
-                if (existingTicket) {
-                    console.log(`⏭️  Skipped: ${webcast.id} (already exists as ticket)`);
-                    skipped++;
-                    continue;
-                }
-
-                // Create ticket from webcast data
-                await Ticket.create({
-                    id: webcast.id,
-                    summary: webcast.summary,
-                    description: webcast.description,
-                    org: webcast.org,
-                    department: webcast.department,
-                    contact: webcast.contact,
-                    reportedBy: webcast.reportedBy,
-                    assignees: webcast.assignees,
-                    cc: webcast.cc,
-                    priority: webcast.priority,
-                    category: 'Webcast',
-                    status: webcast.status,
-                    customAttrs: webcast.customAttrs,
-                    isWebcast: true,
-                    satsangType: webcast.satsangType,
-                    location: webcast.location,
-                    timeline: webcast.timeline,
-                    comments: webcast.comments,
-                    vendor: webcast.vendor,
-                    dueDate: webcast.dueDate,
-                    satsangId: webcast.satsangId,
-                    createdAt: webcast.createdAt,
-                    updatedAt: webcast.updatedAt
-                });
-
-                console.log(`✅ Migrated: ${webcast.id} - ${webcast.summary.substring(0, 50)}`);
-                migrated++;
-
-            } catch (err) {
-                console.error(`❌ Error migrating ${webcast.id}:`, err.message);
-                errors++;
-            }
-        }
-
-        // Step 4: Sync all isWebcast=true tickets to have category='Webcast'
-        const [updateCount] = await Ticket.update(
+        // Backfill: any ticket with isWebcast=true should have category='Webcast'
+        await Ticket.update(
             { category: 'Webcast' },
-            { where: { isWebcast: true } }
+            { where: { isWebcast: true, category: { [Op.ne]: 'Webcast' } } }
         );
-
-        console.log(`\n📈 Synced ${updateCount} webcast tickets with category field`);
-
-        // Step 5: Verification
-        const webcastTicketCount = await Ticket.count({
-            where: {
-                [Op.or]: [
-                    { isWebcast: true },
-                    sequelize.where(
-                        sequelize.fn('LOWER', sequelize.col('category')),
-                        Op.like,
-                        '%webcast%'
-                    )
-                ]
-            }
-        });
-
-        console.log(`\n📋 Migration Summary:`);
-        console.log(`   ✅ Migrated: ${migrated}`);
-        console.log(`   ⏭️  Skipped: ${skipped}`);
-        console.log(`   ❌ Errors: ${errors}`);
-        console.log(`   📊 Total webcast tickets in system: ${webcastTicketCount}`);
-
-        console.log("\n🔄 === WEBCAST MIGRATION COMPLETE ===\n");
-
+        // Any ticket with category='Webcast' should have isWebcast=true
+        await Ticket.update(
+            { isWebcast: true },
+            { where: { category: 'Webcast', isWebcast: false } }
+        );
+        console.log("✅ Webcast ticket sync complete");
     } catch (err) {
-        console.error('❌ Webcast migration error:', err.message);
+        console.error('❌ Webcast sync error:', err.message);
     }
 }
 

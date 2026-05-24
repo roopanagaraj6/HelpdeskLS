@@ -38,6 +38,7 @@ export function useTicketHandlers(ctx) {
     advancedExportFilters,
     isTrueWebcast,
     addDailyNotif,
+    loadData,
     selTicket, setSelTicket: _setSelTicket,
   } = ctx;
   const allSortedTickets = filtered ?? [];
@@ -163,18 +164,24 @@ export function useTicketHandlers(ctx) {
             });
           }
         }
-        // Normalize ticket/webcast assignees: pass as-is, ensure array
-        if (targetTable === "tickets" || targetTable === "webcasts") {
+        // Normalize ticket assignees
+        if (targetTable === "tickets") {
           payload = payload.map(row => ({
             ...row,
             assignees: Array.isArray(row.assignees) ? row.assignees : [],
+            // Auto-set isWebcast for Webcast category rows
+            ...(row.category === "Webcast" ? { isWebcast: true } : {}),
+            // Default satsangType and location for Webcast rows missing them
+            ...(row.category === "Webcast" || row.isWebcast === true ? {
+              satsangType: row.satsangType || "Satsang With GuruDev",
+              location: row.location || "Amphitheater",
+            } : {}),
           }));
         }
         // ✅ Map to direct API endpoints
-        const IMPORT_TABLES = ["tickets", "webcasts", "projects"];
+        const IMPORT_TABLES = ["tickets", "projects"];
         const API_MAP = {
           tickets: `${BASE_URL}/import/tickets`,
-          webcasts: `${BASE_URL}/import/webcasts`,
           projects: `${BASE_URL}/import/projects`,
           users: USERS_API,
           orgs: ORGS_API,
@@ -375,67 +382,7 @@ export function useTicketHandlers(ctx) {
       newT.location = form.location || "";
     }
 
-    // ✅ NEW: If webcast, create separate entry and send to /api/webcasts
-    if (form.category === "Webcast") {
-      try {
-        const baseWebcastData = {
-          summary: form.summary,
-          description: form.description,
-          satsangType: form.satsangType,
-          location: form.location,
-          contact: form.contact,
-          reportedBy: form.reportedBy,
-          org: form.org,
-          department: form.department,
-          priority: form.priority,
-          category: form.category,
-          dueDate: form.dueDate || null,
-          status: "Open",
-          image: ticketImage || null,
-          comments: [],
-          timeline: [{ action: "Created", by: currentUser.name, date: new Date().toISOString(), note: "Webcast created." + (ticketImage ? " [with image]" : "") }]
-        };
-
-        const assigneeList = Array.isArray(form.assignees) && form.assignees.length > 0
-          ? form.assignees
-          : [null];
-        const webcastsToCreate = assigneeList.length > 1
-          ? assigneeList.map(a => ({ ...baseWebcastData, assignees: [a] }))
-          : [{ ...baseWebcastData, assignees: form.assignees }];
-
-        const createdWebcasts = [];
-        for (const webcastData of webcastsToCreate) {
-          const webcastRes = await axios.post(`${BASE_URL}/webcasts`, webcastData);
-          const createdWebcast = webcastRes.data;
-          createdWebcasts.push({
-            ...createdWebcast,
-            created: new Date(createdWebcast.createdAt || createdWebcast.created || new Date()),
-            updated: new Date(createdWebcast.updatedAt || createdWebcast.updated || new Date())
-          });
-        }
-
-        setTickets(prev => [...createdWebcasts, ...prev]);
-        setSelTicket(createdWebcasts[0]);
-        setShowNewTicket(false);
-        setForm(emptyForm());
-        setTicketImage(null);
-        setTicketImagePreview(null);
-        setAssigneeSearch("");
-        setShowAssigneeDD(false);
-        const msg = createdWebcasts.length > 1
-          ? `✅ ${createdWebcasts.length} webcasts created (one per assignee)`
-          : "✅ Webcast created successfully!";
-        setCustomAlert({ show: true, message: msg, type: "success" });
-        createdWebcasts.forEach(w => addDailyNotif({ type: "webcast_created", icon: "📡", text: `${currentUser.name} created webcast ${w.id}`, ticketId: w.id, by: currentUser.name }));
-      } catch (e) {
-        setCustomAlert({ show: true, message: "Failed to create webcast: " + (e.response?.data?.error || e.message), type: "error" });
-      }
-      return;
-    }
-
-    // ✅ Regular ticket creation
-    // ✅ Regular ticket creation
-    // If multiple assignees, create one ticket per assignee
+    // Always create via /api/tickets regardless of category
     const assignees = Array.isArray(newT.assignees) ? newT.assignees : [];
     const ticketsToCreate = assignees.length > 1
       ? assignees.map(a => ({ ...newT, assignees: [a] }))
@@ -460,11 +407,19 @@ export function useTicketHandlers(ctx) {
       setTicketImagePreview(null);
       setAssigneeSearch("");
       setShowAssigneeDD(false);
+      const isWebcast = form.category === "Webcast";
+      const label = isWebcast ? "webcast" : "ticket";
       const msg = createdTickets.length > 1
-        ? `✅ ${createdTickets.length} tickets created (one per assignee)`
-        : "✅ Ticket created successfully!";
+        ? `✅ ${createdTickets.length} ${label}s created (one per assignee)`
+        : `✅ ${label.charAt(0).toUpperCase() + label.slice(1)} created successfully!`;
       setCustomAlert({ show: true, message: msg, type: "success" });
-      createdTickets.forEach(t => addDailyNotif({ type: "ticket_created", icon: "🎫", text: `${currentUser.name} created ticket ${t.id}`, ticketId: t.id, by: currentUser.name }));
+      createdTickets.forEach(t => addDailyNotif({
+        type: isWebcast ? "webcast_created" : "ticket_created",
+        icon: isWebcast ? "📡" : "🎫",
+        text: `${currentUser.name} created ${label} ${t.id}`,
+        ticketId: t.id,
+        by: currentUser.name
+      }));
     } catch (e) {
       setCustomAlert({ show: true, message: "Failed to save ticket: " + (e.response?.data?.error || e.message), type: "error" });
     }
@@ -504,7 +459,7 @@ export function useTicketHandlers(ctx) {
       const nowISO = new Date().toISOString();
       const newTimelineEvent = { action: `Status changed to ${status}`, by: currentUser.name, date: nowISO, note: "" };
       const updatedT = { ...t, status, updated: nowISO, timeline: [...(t.timeline || []), newTimelineEvent] };
-      const apiUrl = isTrueWebcast(t) ? `${BASE_URL}/webcasts/${id}` : `${TICKETS_API}/${id}`;
+      const apiUrl = `${TICKETS_API}/${id}`;
       await axios.put(apiUrl, updatedT);
       setTickets(p => p.map(x => x.id === id ? { ...updatedT, updated: new Date(nowISO) } : x));
       if (selTicket?.id === id) setSelTicket({ ...updatedT, updated: new Date(nowISO) });
@@ -581,20 +536,11 @@ export function useTicketHandlers(ctx) {
         note: `Reason: ${remark}${closedByVal ? ` · Closed by: ${closedByVal.name}` : ""}${!isReopeningNow && closedDateVal ? ` · Closed Date: ${new Date(closedDateVal).toLocaleString()}` : ""}`
       };
       const updatedT = { ...t, status: newStatus, updated: nowISO, closedBy: newStatus === "Closed" ? closedByName : null, closedAt: newStatus === "Closed" ? (closedDateVal ? new Date(closedDateVal).toISOString() : nowISO) : null, timeline: [...(t.timeline || []), newTimelineEvent] };
-      const apiUrl = isTrueWebcast(t) ? `${BASE_URL}/webcasts/${ticketId}` : `${TICKETS_API}/${ticketId}`;
+      const apiUrl = `${TICKETS_API}/${ticketId}`;
       await axios.put(apiUrl, updatedT);
       setTickets(p => p.map(x => x.id === ticketId ? { ...updatedT, updated: new Date(nowISO) } : x));
       if (selTicket?.id === ticketId) setSelTicket({ ...updatedT, updated: new Date(nowISO) });
 
-      // Force re-fetch webcasts to ensure DB is in sync before next refresh
-      try {
-        if (!isTrueWebcast(t)) throw new Error("not a webcast");
-        const refreshed = await axios.get(`${BASE_URL}/webcasts/${ticketId}`);
-        if (refreshed.data) {
-          const fresh = { ...refreshed.data, created: new Date(refreshed.data.createdAt || refreshed.data.created), updated: new Date(refreshed.data.updatedAt || refreshed.data.updated) };
-          setTickets(p => p.map(x => x.id === ticketId ? fresh : x));
-        }
-      } catch (_) { }
       addDailyNotif({ type: newStatus === "Closed" ? "ticket_closed" : "ticket_reopened", icon: newStatus === "Closed" ? "✅" : "🔄", text: `${currentUser.name} ${newStatus === "Closed" ? "closed" : "reopened"} ticket ${ticketId}`, ticketId, by: currentUser.name });
       const otherAssignees = (t.assignees || []).filter(a => a.id !== currentUser.id);
       for (const assignee of otherAssignees) {
@@ -671,7 +617,7 @@ export function useTicketHandlers(ctx) {
           const nowISO = new Date().toISOString();
           const binTimelineEvent = { action: "Moved to Bin", by: currentUser.name, date: nowISO, note: `Previous status: ${t.status}` };
           const updatedT = { ...t, status: "Bin", updated: nowISO, timeline: [...(t.timeline || []), binTimelineEvent] };
-          const apiUrl = isTrueWebcast(t) ? `${BASE_URL}/webcasts/${id}` : `${TICKETS_API}/${id}`;
+          const apiUrl = `${TICKETS_API}/${id}`;
           await axios.put(apiUrl, updatedT);
           setTickets(p => p.map(x => x.id === id ? { ...updatedT, updated: new Date(nowISO) } : x));
           if (selTicket?.id === id) setSelTicket(null);
@@ -695,7 +641,7 @@ export function useTicketHandlers(ctx) {
         setDeleteConfirmation({ show: false });
         try {
           const t = tickets.find(x => x.id === id);
-          const apiUrl = isTrueWebcast(t) ? `${BASE_URL}/webcasts/${id}` : `${TICKETS_API}/${id}`;
+          const apiUrl = `${TICKETS_API}/${id}`;
           await axios.delete(apiUrl);
           setTickets(p => p.filter(x => x.id !== id));
           setCustomAlert({ show: true, message: "✅ Ticket permanently deleted", type: "success" });

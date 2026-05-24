@@ -44,58 +44,23 @@ export function useProjectHandlers(ctx) {
       timeline: [{ action: "Created", by: currentUser.name, date: new Date().toISOString(), note: "Project opened." }]
     };
 
-    // ✅ NEW: If webcast, create separate entry and send to /api/webcasts
-    if (projForm.category === "Webcast") {
-      try {
-        // Generate unique webcast ID
-        const webcastData = {
-          // id intentionally omitted — server will generate WEB-XXXX
-          title: projForm.title,
-          description: projForm.description,
-          satsangType: projForm.satsangType,
-          location: projForm.location,
-          reportedBy: projForm.reportedBy,
-          org: projForm.org,
-          department: projForm.department,
-          priority: projForm.priority,
-          assignees: projForm.assignees,
-          category: projForm.category,
-          dueDate: projForm.dueDate || null,
-          status: projForm.status || "Open",
-          progress: projForm.progress || 0,
-          comments: [],
-          timeline: [{ action: "Created", by: currentUser.name, date: new Date().toISOString(), note: "Webcast created." }]
-        };
-
-        const webcastRes = await axios.post(`${BASE_URL}/webcasts`, webcastData);
-        const createdWebcast = webcastRes.data;
-        const webcastWithDates = { ...createdWebcast, created: new Date(createdWebcast.createdAt || createdWebcast.created), updated: new Date(createdWebcast.updatedAt || createdWebcast.updated) };
-
-        setProjects(prev => [webcastWithDates, ...prev]);
-        setSelProject(webcastWithDates);
-        setShowNewProject(false);
-        setProjForm(emptyProjectForm);
-        setCustomAlert({ show: true, message: "✅ Webcast project created successfully!", type: "success" });
-        addDailyNotif({ type: "webcast_created", icon: "📡", text: `${currentUser.name} created webcast project ${createdWebcast.id}`, ticketId: createdWebcast.id, by: currentUser.name });
-        return;
-      } catch (e) {
-        setCustomAlert({ show: true, message: "Failed to create webcast: " + (e.response?.data?.error || e.message), type: "error" });
-      }
-      return;
-    }
-
-    // ✅ Regular project creation
+    // ✅ All projects (including Webcast category) go through /api/projects
     try {
       const res = await axios.post(PROJECTS_API, newP);
       const created = res.data;
       const projectWithDates = { ...created, created: new Date(created.createdAt || created.created), updated: new Date(created.updatedAt || created.updated), dueDate: created.dueDate ? new Date(created.dueDate) : null };
       setProjects(prev => [projectWithDates, ...prev]);
-      setSelProject(projectWithDates);  // ✅ Auto-open project details
+      setSelProject(projectWithDates);
       setShowNewProject(false);
       setProjForm(emptyProjectForm);
-      setCustomAlert({ show: true, message: "✅ Project created successfully!", type: "success" });
-      addDailyNotif({ type: "project_created", icon: "📁", text: `${currentUser.name} created project "${projectWithDates.title || projectWithDates.id}"`, by: currentUser.name });
-      // ✅ Animation handles fade-out automatically (3.5s)
+      const isWebcast = projForm.category === "Webcast";
+      setCustomAlert({ show: true, message: isWebcast ? "✅ Webcast project created successfully!" : "✅ Project created successfully!", type: "success" });
+      addDailyNotif({
+        type: isWebcast ? "webcast_created" : "project_created",
+        icon: isWebcast ? "📡" : "📁",
+        text: `${currentUser.name} created ${isWebcast ? "webcast project" : "project"} "${projectWithDates.title || projectWithDates.id}"`,
+        by: currentUser.name
+      });
     } catch (e) {
       setCustomAlert({ show: true, message: "Failed to save project: " + (e.response?.data?.error || e.message), type: "error" });
     }

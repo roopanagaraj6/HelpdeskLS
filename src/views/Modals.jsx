@@ -13,19 +13,19 @@ import { PRIORITIES, STATUSES, iS, sS, bP, bG } from "../constants/constants";
  */
 function WebcastFields({ f, setF, isProject, categories, locations }) {
   const webcastCat = (categories || []).find(c => c.name === "Webcast");
-  const satsangTypes = webcastCat?.subcategories || [];
+  const subcategories = webcastCat?.subcategories || [];
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
       <div>
-        <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Satsang Type <span style={{ color: "#ef4444" }}>*</span></label>
+        <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Sub Category <span style={{ color: "#ef4444" }}>*</span></label>
         <select style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1.5px solid #e2e8f0", fontSize: 13 }}
           value={f.satsangType || ""} onChange={e => setF({ ...f, satsangType: e.target.value })}>
-          <option value="">Select type…</option>
-          {satsangTypes.map(t => <option key={t}>{t}</option>)}
+          <option value="">Select sub category…</option>
+          {subcategories.map(t => <option key={t}>{t}</option>)}
         </select>
       </div>
       <div>
-        <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Webcast Location <span style={{ color: "#ef4444" }}>*</span></label>
+        <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Location <span style={{ color: "#ef4444" }}>*</span></label>
         <select style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1.5px solid #e2e8f0", fontSize: 13 }}
           value={f.location || ""} onChange={e => setF({ ...f, location: e.target.value })}>
           <option value="">Select location…</option>
@@ -566,13 +566,19 @@ export function Modals(props) {
 
                 {(() => {
                   const selCat = categories.find(c => c.name === editTicket.category);
-                  if (!selCat || editTicket.category === "Webcast") return null;
+                  if (!selCat) return null;
                   const subs = selCat.subcategories || [];
                   if (subs.length === 0) return null;
+                  const isWebcastCat = editTicket.category === "Webcast";
+                  const label = "Sub Category" + (isWebcastCat ? " *" : "");
+                  const value = isWebcastCat ? (editTicket.satsangType || "") : (editTicket.subcategory || "");
+                  const onChange = isWebcastCat
+                    ? e => setEditTicket({ ...editTicket, satsangType: e.target.value })
+                    : e => setEditTicket({ ...editTicket, subcategory: e.target.value });
                   return (
                     <div>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", display: "block", marginBottom: 5 }}>Sub Category </label>
-                      <select value={editTicket.subcategory || ""} onChange={e => setEditTicket({ ...editTicket, subcategory: e.target.value })} style={{ ...iS, width: "100%", fontSize: 13 }}>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", display: "block", marginBottom: 5 }}>{label}</label>
+                      <select value={value} onChange={onChange} style={{ ...iS, width: "100%", fontSize: 13 }}>
                         <option value="">Select Sub Category…</option>
                         {subs.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
@@ -642,6 +648,11 @@ export function Modals(props) {
                   { l: "POC (Point of Contact)", v: selTicket.contact || "—" },
                   { l: "Reported By", v: selTicket.reportedBy || "—" },
                   { l: "Category", v: selTicket.category || "—" },
+                  ...(selTicket.category === "Webcast" && selTicket.satsangType
+                    ? [{ l: "Sub Category", v: selTicket.satsangType }]
+                    : selTicket.subcategory
+                      ? [{ l: "Sub Category", v: selTicket.subcategory }]
+                      : []),
                   { l: "Location", v: selTicket.location || "—" },
                   { l: "Due Date", v: selTicket.dueDate ? new Date(selTicket.dueDate).toLocaleDateString() : "—" },
                   { l: "Priority", v: selTicket.priority },
