@@ -163,7 +163,13 @@ export function useTicketHandlers(ctx) {
             });
           }
         }
-
+        // Normalize ticket/webcast assignees: pass as-is, ensure array
+        if (targetTable === "tickets" || targetTable === "webcasts") {
+          payload = payload.map(row => ({
+            ...row,
+            assignees: Array.isArray(row.assignees) ? row.assignees : [],
+          }));
+        }
         // ✅ Map to direct API endpoints
         const IMPORT_TABLES = ["tickets", "webcasts", "projects"];
         const API_MAP = {

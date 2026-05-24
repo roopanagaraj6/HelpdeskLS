@@ -139,9 +139,9 @@ export function DashboardView(props) {
                   <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
                     <div style={{ background: "#faf8f4", borderRadius: 12, padding: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                       <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10, color: "#374151" }}>Recent Tickets</div>
-                      {(currentUser?.role === "Admin" || currentUser?.role === "Manager" ? tickets : tickets.filter(t => t.reportedBy === currentUser?.name || t.assignees?.some(a => a.id === currentUser?.id))).slice(0, 10).map(t => (
+                      {(currentUser?.role === "Admin" || currentUser?.role === "Manager" ? tickets : tickets.filter(t => t.reportedBy === currentUser?.name || (Array.isArray(t.assignees) ? t.assignees : []).some(a => a.id === currentUser?.id))).slice(0, 10).map(t => (
                         <div key={t.id} onClick={() => setSelTicket(t)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px", borderRadius: 8, cursor: "pointer", border: "1px solid #f1f5f9", marginBottom: 5 }}>
-                          <div style={{ display: "flex" }}>{(t.assignees || []).slice(0, 2).map((a, i) => <div key={a.id ?? `${t.id}-a-${i}`} style={{ marginLeft: i > 0 ? -6 : 0, border: "2px solid #fff", borderRadius: "50%" }}><Avatar name={a.name} size={24} /></div>)}{!t.assignees?.length && <Avatar name="?" size={24} />}</div>
+                          <div style={{ display: "flex" }}>{(Array.isArray(t.assignees) ? t.assignees : []).slice(0, 2).map((a, i) => <div key={a.id ?? `${t.id}-a-${i}`} style={{ marginLeft: i > 0 ? -6 : 0, border: "2px solid #fff", borderRadius: "50%" }}><Avatar name={a.name} size={24} /></div>)}{!(Array.isArray(t.assignees) && t.assignees.length) && <Avatar name="?" size={24} />}</div>
                           <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.summary}</div><div style={{ fontSize: 10, color: "#94a3b8" }}>{t.id} · {t.org}</div></div>
                           <Badge label={t.status} style={{...STATUS_COLOR[t.status], fontSize: 10}}/>
                         </div>

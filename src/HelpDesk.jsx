@@ -463,7 +463,8 @@ export default function HelpDesk() {
           created: new Date(t.createdAt || t.created),
           updated: new Date(t.updatedAt || t.updated),
           satsangType: t.satsangType || "",
-          location: t.location || ""
+          location: t.location || "",
+          assignees: Array.isArray(t.assignees) ? t.assignees : (typeof t.assignees === "string" ? JSON.parse(t.assignees) : []),
         }));
         setTickets(prev => {
           const webcasts = prev.filter(t => String(t.id).startsWith("WEB-") || String(t.id).startsWith("WC-"));
@@ -914,7 +915,8 @@ export default function HelpDesk() {
           created: new Date(t.createdAt || t.created),
           updated: new Date(t.updatedAt || t.updated),
           satsangType: t.satsangType || "",
-          location: t.location || ""
+          location: t.location || "",
+          assignees: Array.isArray(t.assignees) ? t.assignees : (typeof t.assignees === "string" ? JSON.parse(t.assignees) : []),
       })).sort((a, b) => b.created - a.created);
       let parsedWebcasts = [];
       try {

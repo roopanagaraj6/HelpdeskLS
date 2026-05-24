@@ -403,13 +403,13 @@ export const TicketsView = React.memo(function TicketsView(props) {
                     {visibleTicketCols.has("reportedBy") && <td style={tdStyle} onClick={() => setSelTicket(t)}><span style={{ fontSize: 12, color: "#64748b" }} title={t.reportedBy || "—"}>{t.reportedBy ? t.reportedBy.split(" ")[0] : "—"}</span></td>}
                     {visibleTicketCols.has("assignees") && <td style={tdStyle} onClick={() => setSelTicket(t)}>
                       <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
-                        {(t.assignees || []).map((a, i) => (
+                        {(Array.isArray(t.assignees) ? t.assignees : []).map((a, i) => (
                           <div key={a.id ?? `${t.id}-a-${i}`} style={{ display: "flex", alignItems: "center", gap: 4 }}>
                             <Avatar name={a.name} size={18} />
                             <span style={{ fontSize: 11, fontWeight: 600, color: "#374151", whiteSpace: "nowrap" }}>{a.name.split(" ")[0]}</span>
                           </div>
                         ))}
-                        {!t.assignees?.length && <span style={{ fontSize: 11, color: "#94a3b8" }}>None</span>}
+                        {!(Array.isArray(t.assignees) && t.assignees.length) && <span style={{ fontSize: 11, color: "#94a3b8" }}>None</span>}
                       </div>
                     </td>}
                     {visibleTicketCols.has("priority") && <td style={tdStyle} onClick={() => setSelTicket(t)}><div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: PRIORITY_COLOR[t.priority], display: "inline-block" }} /><span style={{ fontSize: 12 }}>{t.priority}</span></div></td>}
