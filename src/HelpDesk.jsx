@@ -1599,6 +1599,10 @@ export default function HelpDesk() {
 
   const filteredProjects = useMemo(() => projects.filter(p => {
     if (!currentUser || !cpv.filter(p, currentUser)) return false;
+    // Agents and Viewers only see projects they are assigned to
+    if (currentUser.role === "Agent" || currentUser.role === "Viewer") {
+      if (!p.assignees?.some(a => a.id === currentUser.id)) return false;
+    }
     if (projStatusF !== "All" && p.status !== projStatusF) return false;
     if (projPriorityF !== "All" && p.priority !== projPriorityF) return false;
     if (projFilterStatus.length > 0) {
