@@ -352,8 +352,13 @@ export function SettingsView(props) {
 } = props;
 
   const [userStatusFilter, setUserStatusFilter] = React.useState("all");
-  const [agentStats, setAgentStats] = React.useState({ assigned: {}, closed: {} });
-  React.useEffect(() => { axios.get(`${BASE_URL}/stats/agents`).then(res => setAgentStats(res.data)).catch(() => {}); }, []);
+  const [agentStats, setAgentStats] = React.useState({ assigned: {}, closed: {}, open: {} });
+  React.useEffect(() => {
+    const fetchStats = () => axios.get(`${BASE_URL}/stats/agents`).then(res => setAgentStats(res.data)).catch(() => {});
+    fetchStats();
+    const interval = setInterval(fetchStats, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const statusOpts = [
     { l: "On Duty", c: "#15803d" },
@@ -615,7 +620,7 @@ export function SettingsView(props) {
                               </div>
                           }
                         </td>
-                        <td style={{ ...tdStyle, color: "#64748b", fontSize: 12 }}>{c.ticketCount ?? 0}</td>
+                        <td style={{ ...tdStyle, color: "#64748b", fontSize: 12 }}>{(props.tickets || []).filter(t => t.category === c.name && (dashboardOrg === "all" || t.org === dashboardOrg)).length}</td>
                         {currentUser?.role === "Admin" && <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>
                           {expandedCatId === c.id ? (
                             <>
@@ -890,7 +895,7 @@ export function SettingsView(props) {
                       <td style={tdStyle}><span style={{ fontSize: 12, color: u.active ? "#15803d" : "#ef4444", fontWeight: 500 }}>{u.active ? "Activated" : "Deactivated"}</span></td>
                       <td style={{ ...tdStyle, textAlign: "center", fontSize: 13 }}>{agentStats.assigned[u.name] || 0}</td>
                       <td style={{ ...tdStyle, textAlign: "center", fontSize: 13 }}>{agentStats.closed[u.name] || 0}</td>
-                      <td style={{ ...tdStyle, textAlign: "center", fontSize: 13 }}>{(agentStats.assigned[u.name] || 0) - (agentStats.closed[u.name] || 0)}</td>
+                      <td style={{ ...tdStyle, textAlign: "center", fontSize: 13 }}>{agentStats.open?.[u.name] || 0}</td>
                       {(() => { const assigned = agentStats.assigned[u.name] || 0; const closed = agentStats.closed[u.name] || 0; const rate = assigned ? Math.round(closed / assigned * 100) : 0; return <td style={{ ...tdStyle, fontSize: 12, color: rate > 70 ? "#15803d" : rate > 40 ? "#b45309" : "#b91c1c" }}>{rate}%</td>; })()}
                       {(currentUser?.role === "Admin") && (
                         <td style={tdStyle}><div style={{ display: "flex", gap: 6 }}> 

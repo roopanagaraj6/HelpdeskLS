@@ -1206,25 +1206,35 @@ app.get("/api/stats/agents", async (req, res) => {
     try {
         const hit = cacheGet("stats:agents");
         if (hit) return res.json(hit);
-        const [assigned, closed] = await Promise.all([
-            sequelize.query(
-                `SELECT JSON_UNQUOTE(JSON_EXTRACT(a.val, '$.name')) as name, COUNT(*) as cnt
-                 FROM Tickets t
-                 JOIN JSON_TABLE(t.assignees, '$[*]' COLUMNS(val JSON PATH '$')) a ON TRUE
-                 WHERE t.status != 'Bin' GROUP BY name`,
-                { type: sequelize.QueryTypes.SELECT }
-            ),
-            sequelize.query(
-                `SELECT JSON_UNQUOTE(JSON_EXTRACT(a.val, '$.name')) as name, COUNT(*) as cnt
-                 FROM Tickets t
-                 JOIN JSON_TABLE(t.assignees, '$[*]' COLUMNS(val JSON PATH '$')) a ON TRUE
-                 WHERE t.status = 'Closed' GROUP BY name`,
-                { type: sequelize.QueryTypes.SELECT }
-            )
-        ]);
-        const assignedMap = Object.fromEntries(assigned.map(r => [r.name, Number(r.cnt)]));
-        const closedMap = Object.fromEntries(closed.map(r => [r.name, Number(r.cnt)]));
-        const result = { assigned: assignedMap, closed: closedMap };
+
+        // Fetch all non-Bin tickets with assignees — use application-side aggregation
+        // to avoid JSON_TABLE compatibility issues across MySQL versions
+        const allTickets = await Ticket.findAll({
+            where: { status: { [Op.ne]: "Bin" } },
+            attributes: ["assignees", "status"],
+            raw: true,
+        });
+
+        const assignedMap = {};
+        const closedMap = {};
+        const openMap = {};
+
+        for (const t of allTickets) {
+            let assignees = t.assignees;
+            if (typeof assignees === "string") {
+                try { assignees = JSON.parse(assignees); } catch { assignees = []; }
+            }
+            if (!Array.isArray(assignees)) continue;
+            for (const a of assignees) {
+                const name = a?.name;
+                if (!name) continue;
+                assignedMap[name] = (assignedMap[name] || 0) + 1;
+                if (t.status === "Closed") closedMap[name] = (closedMap[name] || 0) + 1;
+                if (t.status === "Open")   openMap[name]   = (openMap[name]   || 0) + 1;
+            }
+        }
+
+        const result = { assigned: assignedMap, closed: closedMap, open: openMap };
         cacheSet("stats:agents", result, CACHE_TTL.stats);
         res.json(result);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -1308,22 +1318,29 @@ app.get("/api/stats/dashboard", async (req, res) => {
                    AND JSON_SEARCH(t.timeline, 'one', 'Reopened', NULL, '$[*].action') IS NOT NULL`,
                 { type: sequelize.QueryTypes.SELECT }
             ),
-            // Closures by person: filter by closedAt for date range, org for org filter
-            sequelize.query(
-                `SELECT JSON_UNQUOTE(JSON_EXTRACT(a.val, '$.name')) as name, COUNT(*) as cnt
-                 FROM Tickets t
-                 JOIN JSON_TABLE(t.assignees, '$[*]' COLUMNS(val JSON PATH '$')) a ON TRUE
-                 WHERE t.status = 'Closed' ${orgClause} ${closedDateClause}
-                 GROUP BY name
-                 ORDER BY cnt DESC`,
-                { type: sequelize.QueryTypes.SELECT }
-            ),
+            // Closures by person: fetch closed tickets, aggregate in app to avoid JSON_TABLE compat issues
+            Ticket.findAll({
+                where: {
+                    status: "Closed",
+                    ...(org ? { org } : {}),
+                    ...(dateFromNorm ? { closedAt: { [Op.gte]: new Date(dateFromNorm) } } : {}),
+                },
+                attributes: ["assignees"],
+                raw: true,
+            }),
         ]);
 
         const r = totals[0] || {};
-        const closingUsersMap = Object.fromEntries(
-            closingUsersRows.filter(row => row.name).map(row => [row.name, Number(row.cnt)])
-        );
+        // closingUsersRows is now an array of ticket rows with assignees — aggregate in app
+        const closingUsersMap = {};
+        for (const t of closingUsersRows) {
+            let assignees = t.assignees;
+            if (typeof assignees === "string") { try { assignees = JSON.parse(assignees); } catch { assignees = []; } }
+            if (!Array.isArray(assignees)) continue;
+            for (const a of assignees) {
+                if (a?.name) closingUsersMap[a.name] = (closingUsersMap[a.name] || 0) + 1;
+            }
+        }
         const result = {
             byStatus,
             priority,
