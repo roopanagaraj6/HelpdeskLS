@@ -1641,28 +1641,18 @@ export default function HelpDesk() {
   const dashboardStats = useMemo(() => {
     const isAgent = currentUser?.role === "Agent" || currentUser?.role === "Viewer";
 
-    // Webcast counts from local state (server stats never include Webcasts table)
-    const webcasts = tickets.filter(t =>
-      isTrueWebcast(t) &&
-      t.status !== "Bin" &&
-      (dashboardOrg === "all" || t.org === dashboardOrg)
-    );
-    const wTotal      = webcasts.length;
-    const wOpen       = webcasts.filter(t => t.status === "Open").length;
-    const wClosed     = webcasts.filter(t => t.status === "Closed").length;
-    const wCritical   = webcasts.filter(t => t.priority === "Critical" && t.status === "Open").length;
-    const wReopened = webcasts.filter(t => { const tl = Array.isArray(t.timeline) ? t.timeline : (typeof t.timeline === "string" ? JSON.parse(t.timeline || "[]") : []); return tl.some(e => e.action === "Reopened"); }).length;
-    const wUnassigned = webcasts.filter(t => t.status === "Open" && (!t.assignees || t.assignees.length === 0)).length;
+    // NOTE: Webcasts are stored in the Tickets table (isWebcast=true / category=Webcast).
+    // Server counts already include them — do NOT add them separately to avoid double-counting.
 
     // Admin/Manager: always prefer server counts (fetched with correct org+dateFrom filters)
     if (!isAgent && dashboardStatsMap.counts) {
       return {
-        total:      dashboardStatsMap.counts.total      + wTotal,
-        open:       dashboardStatsMap.counts.open       + wOpen,
-        closed:     dashboardStatsMap.counts.closed     + wClosed,
-        critical:   dashboardStatsMap.counts.critical   + wCritical,
-        reopened:   dashboardStatsMap.counts.reopened   + wReopened,
-        unassigned: (dashboardStatsMap.counts.unassigned ?? 0) + wUnassigned,
+        total:      dashboardStatsMap.counts.total,
+        open:       dashboardStatsMap.counts.open,
+        closed:     dashboardStatsMap.counts.closed,
+        critical:   dashboardStatsMap.counts.critical,
+        reopened:   dashboardStatsMap.counts.reopened,
+        unassigned: dashboardStatsMap.counts.unassigned ?? 0,
       };
     }
     // Admin/Manager fallback before dashboard stats load (initial page load, no filter)
@@ -1670,12 +1660,12 @@ export default function HelpDesk() {
       const open   = serverTicketCounts.byStatus?.find(r => r.status === "Open")?.cnt || 0;
       const closed = serverTicketCounts.byStatus?.find(r => r.status === "Closed")?.cnt || 0;
       return {
-        total:      serverTicketCounts.total            + wTotal,
-        open:       parseInt(open)                      + wOpen,
-        closed:     parseInt(closed)                    + wClosed,
-        critical:   serverTicketCounts.critical         + wCritical,
-        reopened:   serverTicketCounts.reopened         + wReopened,
-        unassigned: (serverTicketCounts.unassigned ?? 0)+ wUnassigned,
+        total:      serverTicketCounts.total,
+        open:       parseInt(open),
+        closed:     parseInt(closed),
+        critical:   serverTicketCounts.critical,
+        reopened:   serverTicketCounts.reopened,
+        unassigned: serverTicketCounts.unassigned ?? 0,
       };
     }
     // Agent/Viewer: compute from local dashboardData (their own tickets only)
@@ -1687,9 +1677,9 @@ export default function HelpDesk() {
       closed:     base.filter(x => x.status === "Closed").length,
       critical:   base.filter(x => x.priority === "Critical" && x.status === "Open").length,
       reopened:   base.filter(x => (x.timeline || []).some(e => e.action === "Reopened" || (e.action?.includes("Status changed to Open") && (x.timeline||[]).some(prev => prev.action?.includes("Status changed to Closed"))))).length,
-      unassigned: wUnassigned,
+      unassigned: base.filter(x => x.status === "Open" && (!x.assignees || x.assignees.length === 0)).length,
     };
-  }, [dashboardData, currentUser, serverTicketCounts, dashboardStatsMap, dashboardOrg, dashboardTimePeriod, tickets]);
+  }, [dashboardData, currentUser, serverTicketCounts, dashboardStatsMap, dashboardOrg, dashboardTimePeriod]);
 
   // For dashboard: Agents and Viewers only see stats for projects assigned to them
   const dashboardProjects = useMemo(() => {

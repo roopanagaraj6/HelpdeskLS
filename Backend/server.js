@@ -1546,7 +1546,8 @@ app.get("/api/tickets/counts", async (req, res) => {
         const total = byStatus.reduce((sum, r) => sum + parseInt(r.cnt), 0);
         const critical = await Ticket.count({ where: { priority: "Critical", status: "Open" } });
         const reopened = (await sequelize.query(`SELECT COUNT(*) as cnt FROM Tickets WHERE JSON_SEARCH(timeline, 'one', 'Reopened', NULL, '$[*].action') IS NOT NULL AND status != 'Bin'`, { type: sequelize.QueryTypes.SELECT }))[0]?.cnt || 0;
-        const result = { byStatus, total, critical, reopened };
+        const unassigned = (await sequelize.query(`SELECT COUNT(*) as cnt FROM Tickets WHERE status = 'Open' AND (assignees IS NULL OR JSON_LENGTH(assignees) = 0)`, { type: sequelize.QueryTypes.SELECT }))[0]?.cnt || 0;
+        const result = { byStatus, total, critical, reopened, unassigned };
         cacheSet("counts", result, CACHE_TTL.counts);
         res.json(result);
     } catch (err) { res.status(500).json({ error: err.message }); }
