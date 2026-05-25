@@ -255,52 +255,58 @@ export function useTicketHandlers(ctx) {
     reader.readAsText(file);
   };
 
-  const handleExport = () => {
-    // Map target to the state variables you already have
-    const DATA_MAP = {
-      tickets: tickets,
-      users: users,
-      orgs: orgs,
-      categories: categories,
-      departments: departments
-    };
-
-    let dataToExport = DATA_MAP[targetTable] || [];
-
-    // Apply filters based on export filter type
+  const handleExport = async () => {
     if (targetTable === "tickets") {
-      if (exportFilterType === "assignee" && exportFilterValue) {
-        dataToExport = dataToExport.filter(t =>
-          t.assignees?.some(a => a.id === exportFilterValue || a.name === exportFilterValue)
-        );
-      } else if (exportFilterType === "category" && exportFilterValue) {
-        dataToExport = dataToExport.filter(t => t.category === exportFilterValue);
-      } else if (exportFilterType === "type" && exportFilterValue) {
-        if (exportFilterValue === "webcast") {
-          dataToExport = dataToExport.filter(t => isTrueWebcast(t));
-        } else if (exportFilterValue === "ticket") {
-          dataToExport = dataToExport.filter(t => !isTrueWebcast(t));
+      try {
+        setCustomAlert({ show: true, message: "⏳ Fetching all tickets for export...", type: "success" });
+        const res = await axios.get(`${BASE_URL}/tickets/report`);
+        let dataToExport = res.data.tickets || [];
+        if (exportFilterType === "assignee" && exportFilterValue) {
+          dataToExport = dataToExport.filter(t => {
+            const assignees = typeof t.assignees === "string" ? JSON.parse(t.assignees || "[]") : (t.assignees || []);
+            return assignees.some(a => a.id === exportFilterValue || a.name === exportFilterValue);
+          });
+        } else if (exportFilterType === "category" && exportFilterValue) {
+          dataToExport = dataToExport.filter(t => t.category === exportFilterValue);
+        } else if (exportFilterType === "type" && exportFilterValue) {
+          if (exportFilterValue === "webcast") dataToExport = dataToExport.filter(t => t.isWebcast);
+          else if (exportFilterValue === "ticket") dataToExport = dataToExport.filter(t => !t.isWebcast);
         }
+        if (dataToExport.length === 0) {
+          setCustomAlert({ show: true, message: "No tickets found with selected filter", type: "error" });
+          return;
+        }
+        const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `tickets_export_${exportFilterType !== "all" ? exportFilterValue + "_" : ""}${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setCustomAlert({ show: true, message: `✅ Exported ${dataToExport.length} tickets`, type: "success" });
+      } catch (e) {
+        setCustomAlert({ show: true, message: "Export failed: " + e.message, type: "error" });
       }
-    } else if (targetTable === "users" && exportFilterType === "role" && exportFilterValue) {
-      dataToExport = dataToExport.filter(u => u.role === exportFilterValue);
-    } else if (targetTable === "orgs" && exportFilterType === "domain" && exportFilterValue) {
-      dataToExport = dataToExport.filter(o => o.domain === exportFilterValue);
-    } else if (targetTable === "categories" && exportFilterType === "color" && exportFilterValue) {
-      dataToExport = dataToExport.filter(c => c.color === exportFilterValue);
-    } else if (targetTable === "departments" && exportFilterType === "org" && exportFilterValue) {
-      dataToExport = dataToExport.filter(d => (d.orgName || "General") === exportFilterValue);
+      return;
     }
 
+    // Non-ticket tables — use in-memory state (always fully loaded)
+    const DATA_MAP = { users, orgs, categories, departments };
+    let dataToExport = DATA_MAP[targetTable] || [];
+    if (targetTable === "users" && exportFilterType === "role" && exportFilterValue)
+      dataToExport = dataToExport.filter(u => u.role === exportFilterValue);
+    else if (targetTable === "orgs" && exportFilterType === "domain" && exportFilterValue)
+      dataToExport = dataToExport.filter(o => o.domain === exportFilterValue);
+    else if (targetTable === "categories" && exportFilterType === "color" && exportFilterValue)
+      dataToExport = dataToExport.filter(c => c.color === exportFilterValue);
+    else if (targetTable === "departments" && exportFilterType === "org" && exportFilterValue)
+      dataToExport = dataToExport.filter(d => (d.orgName || "General") === exportFilterValue);
     if (dataToExport.length === 0) {
       setCustomAlert({ show: true, message: `No ${targetTable} data found with selected filter`, type: "error" });
       return;
     }
-
-    const exportReady = targetTable === "tickets"
-      ? dataToExport.map(({ image, timeline, comments, ...rest }) => rest)
-      : dataToExport;
-    const blob = new Blob([JSON.stringify(exportReady, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
