@@ -1590,9 +1590,7 @@ export default function HelpDesk() {
     return true;
   }), [tickets, cvd, currentUser, statusF, priorityF, search, orgFilter, deptFilter]);
 
-  const webcastCount = filtered.filter(t => isTrueWebcast(t)).length;
-  const effectiveTicketTotalCount = ticketTotalCount + webcastCount;
-  const totalPages = Math.ceil(effectiveTicketTotalCount / TICKETS_PER_PAGE);
+  const totalPages = Math.ceil(ticketTotalCount / TICKETS_PER_PAGE);
   // Filter tickets by column filters
   const allSortedTickets = useMemo(() => filtered, [filtered]);
 
@@ -2196,31 +2194,36 @@ export default function HelpDesk() {
             </div>
             <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
               <button onClick={() => setShowTicketColExport(false)} style={{ ...bG, padding:"7px 14px" }}>Cancel</button>
-              <button onClick={() => {
+              <button onClick={async () => {
                 const cols = [...ticketExportCols];
                 const colLabels = { id:"ID", created:"Created", summary:"Summary", org:"Organization", department:"Department", reportedBy:"Reported By", assignees:"Assignees", priority:"Priority", category:"Category", status:"Status" };
-                if (ticketExportMode === "csv") {
-                  const headers = cols.map(c => colLabels[c]||c);
-                  const rows = allSortedTickets.map(t => cols.map(c => {
-                    if(c==="assignees") return `"${(t.assignees||[]).map(a=>a.name).join("; ")}"`;
-                    if(c==="created"||c==="updated") return new Date(t[c]).toLocaleString();
-                    return `"${t[c]||""}"`;
-                  }));
-                  const csv = [headers,...rows].map(r=>r.join(",")).join("\n");
-                  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download=`tickets_export_${new Date().toISOString().split("T")[0]}.csv`; a.click();
-                } else {
-                  const headers = cols.map(c => colLabels[c]||c);
-                  const trs = allSortedTickets.map(t => `<tr>${cols.map(c => {
-                    let v = c==="assignees" ? (t.assignees||[]).map(a=>a.name).join(", ") : c==="created"||c==="updated" ? new Date(t[c]).toLocaleString() : (t[c]||"");
-                    return `<td>${v}</td>`;
-                  }).join("")}</tr>`).join("");
-                  const html = `<html><head><title>Tickets Export</title><style>body{font-family:sans-serif;font-size:12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left}th{background:#f1f5f9}@media print{body{margin:0}}</style></head><body><h2>Tickets Export — ${new Date().toLocaleDateString()}</h2><p>${allSortedTickets.length} tickets</p><table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${trs}</tbody></table></body></html>`;
-                  const fr = printFrameRef.current;
-                  fr.srcdoc = html;
-                  fr.onload = () => { fr.contentWindow.focus(); fr.contentWindow.print(); };
-                  return;
-                }
                 setShowTicketColExport(false);
+                setCustomAlert({ show: true, message: "⏳ Fetching all tickets for export...", type: "success" });
+                try {
+                  const res = await axios.get(`${BASE_URL}/tickets/report`);
+                  const allTickets = res.data.tickets || [];
+                  if (ticketExportMode === "csv") {
+                    const headers = cols.map(c => colLabels[c]||c);
+                    const rows = allTickets.map(t => cols.map(c => {
+                      if(c==="assignees") { const a = typeof t.assignees==="string" ? JSON.parse(t.assignees||"[]") : (t.assignees||[]); return `"${a.map(x=>x.name).join("; ")}"` ; }
+                      if(c==="created") return new Date(t.createdAt||t.created).toLocaleString();
+                      return `"${t[c]||""}"`;
+                    }));
+                    const csv = [headers,...rows].map(r=>r.join(",")).join("\n");
+                    const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download=`tickets_export_${new Date().toISOString().split("T")[0]}.csv`; a.click();
+                    setCustomAlert({ show: true, message: `✅ Exported ${allTickets.length} tickets as CSV`, type: "success" });
+                  } else {
+                    const headers = cols.map(c => colLabels[c]||c);
+                    const trs = allTickets.map(t => `<tr>${cols.map(c => {
+                      let v; if(c==="assignees") { const a = typeof t.assignees==="string" ? JSON.parse(t.assignees||"[]") : (t.assignees||[]); v=a.map(x=>x.name).join(", "); } else if(c==="created") { v=new Date(t.createdAt||t.created).toLocaleString(); } else { v=t[c]||""; }
+                      return `<td>${v}</td>`;
+                    }).join("")}</tr>`).join("");
+                    const html = `<html><head><title>Tickets Export</title><style>body{font-family:sans-serif;font-size:12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left}th{background:#f1f5f9}@media print{body{margin:0}}</style></head><body><h2>Tickets Export — ${new Date().toLocaleDateString()}</h2><p>${allTickets.length} tickets</p><table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${trs}</tbody></table></body></html>`;
+                    const fr = printFrameRef.current;
+                    fr.srcdoc = html;
+                    fr.onload = () => { fr.contentWindow.focus(); fr.contentWindow.print(); };
+                  }
+                } catch(e) { setCustomAlert({ show: true, message: "Export failed: " + e.message, type: "error" }); }
               }} style={{ ...bP, padding:"7px 14px" }}>⬇️ Export</button>
             </div>
           </div>
@@ -3196,7 +3199,7 @@ export default function HelpDesk() {
           {view === "tickets" && (
             <TicketsView
               tickets={tickets} users={users} orgs={orgs}
-              ticketTotalCount={effectiveTicketTotalCount}
+              ticketTotalCount={ticketTotalCount}
               ticketsLoading={ticketsLoading}
               categories={categories} currentUser={currentUser}
               filtered={filtered} tvFilter={tvFilter} setTvFilter={setTvFilter}
