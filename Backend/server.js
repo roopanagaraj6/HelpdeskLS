@@ -304,7 +304,7 @@ const fmt = (doc) => {
 app.use((req, res, next) => {
   if (!["POST","PUT","DELETE","PATCH"].includes(req.method)) return next();
   const url = req.path;
-  if (url.includes("/tickets"))   cacheDel("paginated:", "counts", "stats:");
+  if (url.includes("/tickets"))   cacheDel("paginated:", "counts", "stats:", "static:categories");
   if (url.includes("/orgs"))      cacheDel("static:orgs", "alldata");
   if (url.includes("/categories"))cacheDel("static:categories", "alldata", "paginated:", "stats:");
   if (url.includes("/departments"))cacheDel("static:departments", "alldata");
@@ -656,7 +656,12 @@ app.get("/api/categories", async (req, res) => {
         const hit = cacheGet("static:categories");
         if (hit) return res.json(hit);
         const cats = await Category.findAll({ order: [['name', 'ASC']] });
-        const result = cats.map(fmt);
+        const counts = await sequelize.query(
+            `SELECT category, COUNT(*) as cnt FROM Tickets WHERE status != 'Bin' GROUP BY category`,
+            { type: sequelize.QueryTypes.SELECT }
+        );
+        const countMap = Object.fromEntries(counts.map(r => [r.category, Number(r.cnt)]));
+        const result = cats.map(c => ({ ...fmt(c), ticketCount: countMap[c.name] || 0 }));
         cacheSet("static:categories", result, CACHE_TTL.static);
         res.json(result);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -1639,13 +1644,16 @@ app.get("/api/all-data", async (req, res) => {
     try {
         const hit = cacheGet("alldata");
         if (hit) return res.json(hit);
-        const [users, orgs, categories, customAttrs, satsangs, departments, locations, vendors, projects] = await Promise.all([
-        User.findAll(), Org.findAll(), Category.findAll(), CustomAttr.findAll(),
+        const [users, orgs, categoriesRaw, customAttrs, satsangs, departments, locations, vendors, projects, catCounts] = await Promise.all([
+        User.findAll(), Org.findAll(), Category.findAll({ order: [['name', 'ASC']] }), CustomAttr.findAll(),
         Satsang.findAll(), Department.findAll(), Location.findAll(), Vendor.findAll(),
-        Project.findAll({ order: [['createdAt', 'DESC']] })
+        Project.findAll({ order: [['createdAt', 'DESC']] }),
+        sequelize.query(`SELECT category, COUNT(*) as cnt FROM Tickets WHERE status != 'Bin' GROUP BY category`, { type: sequelize.QueryTypes.SELECT })
         ]);
+        const catCountMap = Object.fromEntries(catCounts.map(r => [r.category, Number(r.cnt)]));
+        const categories = categoriesRaw.map(c => ({ ...fmt(c), ticketCount: catCountMap[c.name] || 0 }));
         const result = {
-            users: users.map(fmt), orgs: orgs.map(fmt), categories: categories.map(fmt),
+            users: users.map(fmt), orgs: orgs.map(fmt), categories,
             customAttrs: customAttrs.map(fmt), satsangs: satsangs.map(fmt),
             departments: departments.map(fmt), locations: locations.map(fmt), vendors: vendors.map(fmt),
             projects: projects.map(fmt),
@@ -2083,7 +2091,7 @@ async function runScheduledTasks() {
                     customAttrs: {},
                 });
                 counter++;
-                cacheDel("paginated:", "counts", "stats:");
+                cacheDel("paginated:", "counts", "stats:", "static:categories");
                 await task.update({ lastRunAt: now, nextRunAt: calcNextRun(task, now) });
                 console.log("Scheduled task [" + task.name + "] created ticket " + tid);
             } catch (taskErr) {

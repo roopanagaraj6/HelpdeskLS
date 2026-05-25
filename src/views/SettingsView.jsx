@@ -615,7 +615,7 @@ export function SettingsView(props) {
                               </div>
                           }
                         </td>
-                        <td style={{ ...tdStyle, color: "#64748b", fontSize: 12 }}>{(props.tickets || []).filter(t => t.category === c.name && (dashboardOrg === "all" || t.org === dashboardOrg)).length}</td>
+                        <td style={{ ...tdStyle, color: "#64748b", fontSize: 12 }}>{c.ticketCount ?? 0}</td>
                         {currentUser?.role === "Admin" && <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>
                           {expandedCatId === c.id ? (
                             <>
