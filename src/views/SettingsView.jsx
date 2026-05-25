@@ -346,6 +346,7 @@ export function SettingsView(props) {
     PROJECTS_API,
     tickets,
     dashboardOrg,
+    categoryCountMap,
     handleExport,
     handleSelectiveImport,
     importRef,
@@ -620,7 +621,7 @@ export function SettingsView(props) {
                               </div>
                           }
                         </td>
-                        <td style={{ ...tdStyle, color: "#64748b", fontSize: 12 }}>{(props.tickets || []).filter(t => t.category === c.name && (dashboardOrg === "all" || t.org === dashboardOrg)).length}</td>
+                        <td style={{ ...tdStyle, color: "#64748b", fontSize: 12 }}>{dashboardOrg === "all" ? (c.ticketCount ?? 0) : (categoryCountMap?.[c.name] ?? 0)}</td>
                         {currentUser?.role === "Admin" && <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>
                           {expandedCatId === c.id ? (
                             <>

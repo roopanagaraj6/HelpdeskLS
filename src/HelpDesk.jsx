@@ -3356,6 +3356,7 @@ export default function HelpDesk() {
               PROJECTS_API={PROJECTS_API}
               tickets={tickets} setTickets={setTickets}
               dashboardOrg={dashboardOrg}
+              categoryCountMap={categoryCountMap}
               handleExport={handleExport}
               handleSelectiveImport={handleSelectiveImport}
               importRef={importRef}
