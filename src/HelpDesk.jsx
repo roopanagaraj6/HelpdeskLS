@@ -2450,7 +2450,7 @@ export default function HelpDesk() {
 
         {/* New Ticket / Project buttons */}
         <div style={{ padding: "8px 8px 10px", display: "flex", flexDirection: "column", gap: 5 }}>
-          <button onClick={clearAllTickets} style={{ padding: "6px 12px", borderRadius: 7, border: "1px solid #ef4444", background: "#fef2f2", color: "#ef4444", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>🗑 Clear All Tickets</button>
+          {(currentUser?.role === "Admin") && <button onClick={clearAllTickets} style={{ padding: "6px 12px", borderRadius: 7, border: "1px solid #ef4444", background: "#fef2f2", color: "#ef4444", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>🗑 Clear All Tickets</button>}
           <button onClick={() => { setForm({ ...emptyForm(), org: dashboardOrg !== "all" ? dashboardOrg : "" }); setShowNewTicket(true); }} style={{ width: "100%", padding: "8px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#3b82f6,#6366f1)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>+ New Ticket</button>
           <button onClick={() => { setProjForm({ ...emptyProjectForm, org: dashboardOrg !== "all" ? dashboardOrg : "" }); setShowNewProject(true); }} style={{ width: "100%", padding: "8px", borderRadius: 9, border: "1.5px solid #1e40af", background: "transparent", color: "#60a5fa", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: (currentUser?.role === "Admin" || currentUser?.role === "Manager") ? "block" : "none" }}>+ New Project</button>
         </div>
