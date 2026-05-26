@@ -66,7 +66,7 @@ export function useAuthHandlers(ctx) {
       });
 
       // 6. Reload all data
-      await loadData();
+      await loadData(onDutyUser);
 
     } catch (err) {
       console.error("Login error:", err);

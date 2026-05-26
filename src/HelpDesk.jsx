@@ -873,7 +873,7 @@ export default function HelpDesk() {
   const pwdColor = pwdStr <= 25 ? "#ef4444" : pwdStr <= 50 ? "#f59e0b" : pwdStr <= 75 ? "#eab308" : "#22c55e";
 
   // ─── DATA LOADING ──────────────────────────────────────────────────────────
-  const loadData = async () => {
+  const loadData = async (callerUser = null) => { 
     setLoading(true);
     try {
       // Use axios.get because DB_API is a URL string
@@ -923,7 +923,8 @@ export default function HelpDesk() {
           location: t.location || "",
           assignees: Array.isArray(t.assignees) ? t.assignees : (typeof t.assignees === "string" ? JSON.parse(t.assignees) : []),
       })).sort((a, b) => b.created - a.created);
-      const _isAgentDashboard = (currentUser?.role === "Agent" || currentUser?.role === "Viewer") && view === "dashboard";
+      const _activeUser = callerUser ?? currentUser;
+      const _isAgentDashboard = (_activeUser?.role === "Agent" || _activeUser?.role === "Viewer") && view === "dashboard";
       if (!_isAgentDashboard) {
         setTickets(parsedTickets);
         setTicketTotalCount(ticketRes.data.total || 0);
