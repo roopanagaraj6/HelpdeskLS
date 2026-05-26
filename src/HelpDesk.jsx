@@ -422,7 +422,6 @@ export default function HelpDesk() {
     setTicketsLoading(true);
     const _isDashboardFetch = _isAgentRole && view === "dashboard";
     const params = new URLSearchParams({ limit: _isDashboardFetch ? 500 : 25, page: _isDashboardFetch ? 1 : ticketPage });
-    if (_isDashboardFetch) params.set("includeTimeline", "1");
     if (debouncedSearch) params.set("search", debouncedSearch);
     if (priorityF !== "All") params.set("priority", priorityF);
     if (orgFilter !== "all") params.set("org", orgFilter);
