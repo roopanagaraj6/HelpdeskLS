@@ -1398,7 +1398,7 @@ app.get("/api/tickets/paginated", async (req, res) => {
         }
         if (assignee) {
             where[Op.and] = [
-                sequelize.literal(`JSON_SEARCH(assignees, 'one', ${sequelize.escape(assignee)}, NULL, '$[*].name') IS NOT NULL`)
+                sequelize.literal(`assignees LIKE ${sequelize.escape('%' + assignee + '%')}`)
             ];
         }
         if (dateFrom || dateTo) {
@@ -1506,7 +1506,7 @@ app.get("/api/tickets/report", async (req, res) => {
         if (category) where.category = category;
         if (assignee) {
             where[Op.and] = [
-                sequelize.literal(`JSON_SEARCH(assignees, 'one', ${sequelize.escape(assignee)}, NULL, '$[*].name') IS NOT NULL`)
+                sequelize.literal(`assignees LIKE ${sequelize.escape('%' + assignee + '%')}`)
             ];
         }
         if (dateFrom || dateTo) {

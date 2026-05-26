@@ -89,7 +89,12 @@ export function ReportsView(props) {
               if (reportFilters.status.length) result = result.filter(r => reportFilters.status.includes(r.status));              
               if (reportFilters.priority.length) result = result.filter(r => reportFilters.priority.includes(r.priority));
               if (reportFilters.category.length) result = result.filter(r => reportFilters.category.includes(r.category));
-              if (reportFilters.assignee) result = result.filter(r => (r.assignees || []).some(a => a.name?.toLowerCase().includes(reportFilters.assignee.toLowerCase())));
+              if (reportFilters.assignee) result = result.filter(r => {
+                let arr = r.assignees;
+                if (typeof arr === "string") { try { arr = JSON.parse(arr); } catch { arr = []; } }
+                if (!Array.isArray(arr)) arr = [];
+                return arr.some(a => (typeof a === "string" ? a : a.name)?.toLowerCase().includes(reportFilters.assignee.toLowerCase()));
+              });
               const onlyClosed = reportFilters.status.length === 1 && reportFilters.status[0] === "Closed";
               const getRelevantDate = (r) => {
                 if (r.status === "Closed") { const d = getClosedDate(r); if (d) return d; }
@@ -109,7 +114,7 @@ export function ReportsView(props) {
             };
 
             const getCellValue = (row, key) => {
-              if (key === "assignees") return (row.assignees || []).map(a => a.name).join(", ");
+              if (key === "assignees") { let arr = row.assignees; if (typeof arr === "string") { try { arr = JSON.parse(arr); } catch { arr = []; } } if (!Array.isArray(arr)) arr = []; return arr.map(a => (typeof a === "string" ? a : a.name)).join(", "); }
               if (key === "createdAt" || key === "updatedAt" || key === "dueDate") return row[key] ? new Date(row[key]).toLocaleDateString() : "—";
               if (key === "closedAt") {
                 if (row.closedAt) return new Date(row.closedAt).toLocaleDateString();
@@ -166,7 +171,7 @@ export function ReportsView(props) {
                   );
                   // server filtered by status/priority/org/category/date already
                   // only re-filter client-side if multi-value arrays used (UI currently single-select, future-proof)
-                  result = (reportFilters.status.length > 1 || reportFilters.priority.length > 1)
+                  result = (reportFilters.status.length > 1 || reportFilters.priority.length > 1 || reportFilters.assignee)
                     ? applyFilters(rows)
                     : rows.filter(r => r.status !== "Bin");
                 } else {
