@@ -44,14 +44,15 @@ export const BarChart = ({ data, color = "#3b82f6" }) => {
 };
 
 // ─── HORIZONTAL BAR CHART ─────────────────────────────────────────────────────
-export const HorizontalBarChart = ({ data }) => {
+export const HorizontalBarChart = ({ data, maxItems }) => {
   const [hov, setHov] = useState(null);
-  const max = Math.max(...data.map(d => d.value), 1);
+  const visible = maxItems ? data.slice(0, maxItems) : data;
+  const max = Math.max(...visible.map(d => d.value), 1);
   const total = data.reduce((s, d) => s + d.value, 0);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 7, padding: "4px 2px" }}>
       <div style={{ fontSize: 18, fontWeight: 900, color: "#1e293b", lineHeight: 1.2, marginBottom: 4 }}>{total} <span style={{ fontSize: 10, fontWeight: 500, color: "#94a3b8" }}>total</span></div>
-      {data.map((d, i) => {
+      {visible.map((d, i) => {
         const isHov = hov === i;
         const pct = Math.max((d.value / max) * 100, d.value > 0 ? 2 : 0);
         const color = d.color || PIE_COLORS[i % 12];
@@ -169,7 +170,7 @@ export const PieChart = ({ data, donut = false }) => {
 export const DonutChart = ({ data }) => <PieChart data={data} donut={true} />;
 
 // ─── SMART CHART (switchable bar/line/pie/treemap) ────────────────────────────
-export const SmartChart = ({ title, data, defaultType = "bar", defaultColor = "#3b82f6", size = "normal" }) => {
+export const SmartChart = ({ title, data, defaultType = "bar", defaultColor = "#3b82f6", size = "normal", hideTotal }) => {
   const [type, setType] = useState(defaultType);
   const [showPicker, setShowPicker] = useState(false);
   const [hov, setHov] = useState(null);
@@ -200,7 +201,7 @@ export const SmartChart = ({ title, data, defaultType = "bar", defaultColor = "#
     const pieData = data.map((d, i) => ({ ...d, color: d.color || pieCo(i, defaultColor === "#3b82f6" ? null : defaultColor) }));
     return (
       <div style={{ background: "#faf8f4", borderRadius: 12, padding: "14px 16px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-        <ChartHeader title={title} type={type} setType={setType} setHov={setHov} showPicker={showPicker} setShowPicker={setShowPicker} pickerRef={pickerRef} total={total} />
+        <ChartHeader title={title} type={type} setType={setType} setHov={setHov} showPicker={showPicker} setShowPicker={setShowPicker} pickerRef={pickerRef} total={hideTotal ? undefined : total} />
         <div style={{ paddingTop: 8 }}><PieChart data={pieData} /></div>
       </div>
     );
@@ -234,7 +235,7 @@ export const SmartChart = ({ title, data, defaultType = "bar", defaultColor = "#
 
   return (
     <div style={{ background: "#faf8f4", borderRadius: 12, padding: "14px 16px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-      <ChartHeader title={title} type={type} setType={setType} setHov={setHov} showPicker={showPicker} setShowPicker={setShowPicker} pickerRef={pickerRef} total={total} />
+      <ChartHeader title={title} type={type} setType={setType} setHov={setHov} showPicker={showPicker} setShowPicker={setShowPicker} pickerRef={pickerRef} total={hideTotal ? undefined : total} />
       <div style={{ position: "relative", paddingTop: 8 }}>
         {hov !== null && type !== "pie" && (() => {
           const isBar = type === "bar" || type === "histogram";
