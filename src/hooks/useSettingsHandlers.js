@@ -26,6 +26,8 @@ export function useSettingsHandlers(ctx) {
     departments,setDepartments,
     newSubcategory, setNewSubcategory,
     newSubcatCatId, setNewSubcatCatId,
+    passwordForm, setPasswordForm,
+    setShowChangePassword,
   } = ctx;
 
   // ─── SETTINGS HANDLERS (v1 API) ────────────────────────────────────────────

@@ -1566,6 +1566,10 @@ export default function HelpDesk() {
     isTrueWebcast,
     selTicket,
     ticketImage,
+    passwordForm, setPasswordForm,
+    setShowChangePassword,
+    profileForm, setProfileForm,
+    setEditProfileOpen,
   };
 
   // ✅ NEW: Filter for webcast tickets only
