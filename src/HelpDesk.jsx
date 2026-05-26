@@ -220,7 +220,7 @@ export default function HelpDesk() {
   });
 
   const mainContentRef = useRef(null);
-  const switchView = (v) => { setView(v); setSearch(""); setStatusF("All"); setPriorityF("All"); setFilterStatus([]); setFilterAssignment([]); setFilterAssignee(""); setFilterCategory(""); setDeptFilter("all"); setCategoryFilter("all"); setOrgFilterSearch(""); setProjSearch(""); setProjStatusF("All"); setProjPriorityF("All"); setProjFilterStatus([]); setProjFilterAssignment([]); setProjFilterAssignee(""); setProjFilterCategory(""); setProjFilterPriority("All"); setVisibleTicketCols(new Set(ALL_TICKET_COLS.filter(c => c !== "reportedBy"))); setVisibleProjCols(new Set(ALL_PROJ_COLS.filter(c => c !== "progress"))); setSettingsTab(currentUser?.role === "Agent" ? "profile" : "organisations"); setReportBuilderOpen(false); setTicketSort({}); setProjSort({}); setTimeout(() => mainContentRef.current?.scrollTo(0, 0), 0); };
+  const switchView = (v) => { setView(v); setSearch(""); setStatusF("All"); setPriorityF("All"); setTicketDateFrom(""); setFilterStatus([]); setFilterAssignment([]); setFilterAssignee(""); setFilterCategory(""); setDeptFilter("all"); setCategoryFilter("all"); setOrgFilterSearch(""); setProjSearch(""); setProjStatusF("All"); setProjPriorityF("All"); setProjFilterStatus([]); setProjFilterAssignment([]); setProjFilterAssignee(""); setProjFilterCategory(""); setProjFilterPriority("All"); setVisibleTicketCols(new Set(ALL_TICKET_COLS.filter(c => c !== "reportedBy"))); setVisibleProjCols(new Set(ALL_PROJ_COLS.filter(c => c !== "progress"))); setSettingsTab(currentUser?.role === "Agent" ? "profile" : "organisations"); setReportBuilderOpen(false); setTicketSort({}); setProjSort({}); setTimeout(() => mainContentRef.current?.scrollTo(0, 0), 0); };
   const [settingsTab, setSettingsTab] = useState("organisations");
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [filterStatus, setFilterStatus] = useState([]);       // "open","closed","pastdue"
@@ -449,7 +449,7 @@ export default function HelpDesk() {
       else if (dashboardTimePeriod === "6m") cutoff.setMonth(cutoff.getMonth() - 6);
       else if (dashboardTimePeriod === "1y") cutoff.setFullYear(cutoff.getFullYear() - 1);
       const _p2 = n => String(n).padStart(2,"0"); params.set("dateFrom", `${cutoff.getFullYear()}-${_p2(cutoff.getMonth()+1)}-${_p2(cutoff.getDate())}`);
-    } else if (ticketDateFrom) {
+    } else if (ticketDateFrom && tvFilter !== "reopened") {
       params.set("dateFrom", ticketDateFrom);
     }
 
@@ -2397,6 +2397,7 @@ export default function HelpDesk() {
                   setTvFilter("all");
                   setStatusF("All");
                   setPriorityF("All");
+                  setTicketDateFrom("");
                   setTicketsExpanded(prev => !prev);
                 }
               }} style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "8px 11px", borderRadius: 7, border: "none", cursor: "pointer", background: view === n.id ? "#1e293b" : "transparent", color: view === n.id ? "#60a5fa" : "#64748b", fontSize: 13, fontWeight: view === n.id ? 600 : 400, marginBottom: 2, textAlign: "left", fontFamily: "'DM Sans',sans-serif" }}>
