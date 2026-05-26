@@ -421,7 +421,7 @@ export default function HelpDesk() {
     if (view !== "tickets" && !(_isAgentRole && view === "dashboard")) return;
     setTicketsLoading(true);
     const _isDashboardFetch = _isAgentRole && view === "dashboard";
-    const params = new URLSearchParams({ limit: _isDashboardFetch ? 500 : 25, page: _isDashboardFetch ? 1 : ticketPage });
+    const params = new URLSearchParams({ limit: _isDashboardFetch ? 500 : 25, page: _isDashboardFetch ? 1 : ticketPage, ..._isDashboardFetch && { includeTimeline: 1 } });
     if (debouncedSearch) params.set("search", debouncedSearch);
     if (priorityF !== "All") params.set("priority", priorityF);
     if (orgFilter !== "all") params.set("org", orgFilter);
@@ -923,8 +923,11 @@ export default function HelpDesk() {
           location: t.location || "",
           assignees: Array.isArray(t.assignees) ? t.assignees : (typeof t.assignees === "string" ? JSON.parse(t.assignees) : []),
       })).sort((a, b) => b.created - a.created);
-      setTickets(parsedTickets);
-      setTicketTotalCount(ticketRes.data.total || 0);
+      const _isAgentDashboard = (currentUser?.role === "Agent" || currentUser?.role === "Viewer") && view === "dashboard";
+      if (!_isAgentDashboard) {
+        setTickets(parsedTickets);
+        setTicketTotalCount(ticketRes.data.total || 0);
+      }
       setSatsangs(data.satsangs || []);
 
       const parsedProjects = (data.projects || []).map(p => ({
@@ -1687,12 +1690,14 @@ export default function HelpDesk() {
     // Agent/Viewer: compute from local dashboardData (their own tickets only)
     let base = dashboardData;
     if (isAgent) base = base.filter(t => t.assignees?.some(a => a.id === currentUser?.id || a.name === currentUser?.name));
+    // Reopened uses unfiltered dashboardData (no assignee filter) to match what the Reopened tile click shows
+    const reopenedBase = dashboardData.filter(x => x.status !== "Bin");
     return {
       total:      base.filter(x => x.status !== "Bin").length,
       open:       base.filter(x => x.status === "Open").length,
       closed:     base.filter(x => x.status === "Closed").length,
       critical:   base.filter(x => x.priority === "Critical" && x.status === "Open").length,
-      reopened:   base.filter(x => (x.timeline || []).some(e => e.action === "Reopened" || (e.action?.includes("Status changed to Open") && (x.timeline||[]).some(prev => prev.action?.includes("Status changed to Closed"))))).length,
+      reopened:   reopenedBase.filter(x => (x.timeline || []).some(e => e.action === "Reopened" || (e.action?.includes("Status changed to Open") && (x.timeline||[]).some(prev => prev.action?.includes("Status changed to Closed"))))).length,
       unassigned: base.filter(x => x.status === "Open" && (!x.assignees || x.assignees.length === 0)).length,
     };
   }, [dashboardData, currentUser, serverTicketCounts, dashboardStatsMap, dashboardOrg, dashboardTimePeriod]);
