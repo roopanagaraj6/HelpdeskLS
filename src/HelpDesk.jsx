@@ -417,44 +417,53 @@ export default function HelpDesk() {
   }, [search, statusF, priorityF, tvFilter, view, orgFilter, filterStatus, filterAssignment, filterAssignee, filterCategory, ticketSort, ticketDateFrom]);
   const [ticketsLoading, setTicketsLoading] = useState(false);
   useEffect(() => {
-    if (view !== "tickets") return;
+    const _isAgentRole = currentUser?.role === "Agent" || currentUser?.role === "Viewer";
+    if (view !== "tickets" && !(_isAgentRole && view === "dashboard")) return;
     setTicketsLoading(true);
-    const params = new URLSearchParams({ limit: 25, page: ticketPage });
+    const _isDashboardFetch = _isAgentRole && view === "dashboard";
+    const params = new URLSearchParams({ limit: _isDashboardFetch ? 500 : 25, page: _isDashboardFetch ? 1 : ticketPage });
+    if (_isDashboardFetch) params.set("includeTimeline", "1");
     if (debouncedSearch) params.set("search", debouncedSearch);
     if (priorityF !== "All") params.set("priority", priorityF);
     if (orgFilter !== "all") params.set("org", orgFilter);
 
     // tvFilter drives server-side status — takes priority over filterStatus chips
-    if (tvFilter === "open")         { params.set("status", "Open"); }
-    else if (tvFilter === "closed")  { params.set("status", "Closed"); }
-    else if (tvFilter === "pastdue") { params.set("status", "Open"); params.set("pastdue", "1"); }
-    else if (tvFilter === "reopened") { params.set("reopened", "1"); } // no status=Open — reopened tickets can be any status
-    else if (tvFilter === "unassigned") { params.set("unassigned", "1"); params.set("status", "Open"); }
-    else {
-      // tvFilter is "all" or other — use filterStatus chips
-      if (filterStatus.length === 1 && filterStatus[0] === "open")    params.set("status", "Open");
-      if (filterStatus.length === 1 && filterStatus[0] === "closed")  params.set("status", "Closed");
-      if (filterStatus.length === 1 && filterStatus[0] === "pastdue") { params.set("status", "Open"); params.set("pastdue", "1"); }
-      if (filterAssignment.length === 1 && filterAssignment[0] === "unassigned") params.set("unassigned", "1");
-      if (filterAssignment.length === 1 && filterAssignment[0] === "vendor")     params.set("hasVendor", "1");
+    // Exception: when agent/viewer is on dashboard view, skip tvFilter filters so all tickets load for correct stats
+    if (!_isDashboardFetch) {
+      if (tvFilter === "open")         { params.set("status", "Open"); }
+      else if (tvFilter === "closed")  { params.set("status", "Closed"); }
+      else if (tvFilter === "pastdue") { params.set("status", "Open"); params.set("pastdue", "1"); }
+      else if (tvFilter === "reopened") { params.set("reopened", "1"); } // no status=Open — reopened tickets can be any status
+      else if (tvFilter === "unassigned") { params.set("unassigned", "1"); params.set("status", "Open"); }
+      else {
+        // tvFilter is "all" or other — use filterStatus chips
+        if (filterStatus.length === 1 && filterStatus[0] === "open")    params.set("status", "Open");
+        if (filterStatus.length === 1 && filterStatus[0] === "closed")  params.set("status", "Closed");
+        if (filterStatus.length === 1 && filterStatus[0] === "pastdue") { params.set("status", "Open"); params.set("pastdue", "1"); }
+        if (filterAssignment.length === 1 && filterAssignment[0] === "unassigned") params.set("unassigned", "1");
+        if (filterAssignment.length === 1 && filterAssignment[0] === "vendor")     params.set("hasVendor", "1");
+      }
     }
 
     // Apply dashboard time period as dateFrom — takes priority over ticketDateFrom
-    if (dashboardTimePeriod && dashboardTimePeriod !== "all" && tvFilter !== "reopened" && ticketDateFrom) {
-      const cutoff = new Date();
-      if (dashboardTimePeriod === "1d") cutoff.setHours(0, 0, 0, 0);
-      else if (dashboardTimePeriod === "7d") cutoff.setDate(cutoff.getDate() - 7);
-      else if (dashboardTimePeriod === "1m") cutoff.setMonth(cutoff.getMonth() - 1);
-      else if (dashboardTimePeriod === "3m") cutoff.setMonth(cutoff.getMonth() - 3);
-      else if (dashboardTimePeriod === "6m") cutoff.setMonth(cutoff.getMonth() - 6);
-      else if (dashboardTimePeriod === "1y") cutoff.setFullYear(cutoff.getFullYear() - 1);
-      const _p2 = n => String(n).padStart(2,"0"); params.set("dateFrom", `${cutoff.getFullYear()}-${_p2(cutoff.getMonth()+1)}-${_p2(cutoff.getDate())}`);
-    } else if (ticketDateFrom && tvFilter !== "reopened") {
-      params.set("dateFrom", ticketDateFrom);
+    // Skip for dashboard fetch (agent/viewer): needs all tickets for correct stats
+    if (!_isDashboardFetch) {
+      if (dashboardTimePeriod && dashboardTimePeriod !== "all" && tvFilter !== "reopened" && ticketDateFrom) {
+        const cutoff = new Date();
+        if (dashboardTimePeriod === "1d") cutoff.setHours(0, 0, 0, 0);
+        else if (dashboardTimePeriod === "7d") cutoff.setDate(cutoff.getDate() - 7);
+        else if (dashboardTimePeriod === "1m") cutoff.setMonth(cutoff.getMonth() - 1);
+        else if (dashboardTimePeriod === "3m") cutoff.setMonth(cutoff.getMonth() - 3);
+        else if (dashboardTimePeriod === "6m") cutoff.setMonth(cutoff.getMonth() - 6);
+        else if (dashboardTimePeriod === "1y") cutoff.setFullYear(cutoff.getFullYear() - 1);
+        const _p2 = n => String(n).padStart(2,"0"); params.set("dateFrom", `${cutoff.getFullYear()}-${_p2(cutoff.getMonth()+1)}-${_p2(cutoff.getDate())}`);
+      } else if (ticketDateFrom && tvFilter !== "reopened") {
+        params.set("dateFrom", ticketDateFrom);
+      }
+      if (filterCategory) params.set("category", filterCategory);
     }
-
-    if (filterCategory) params.set("category", filterCategory);
-    if (filterAssignee.length === 1) params.set("assignee", filterAssignee[0]);
+    if (_isAgentRole && filterAssignee.length === 0) params.set("assignee", currentUser.name);
+    else if (filterAssignee.length === 1) params.set("assignee", filterAssignee[0]);
     if (ticketSortRef.current?._sortField === "created") params.set("sortDir", ticketSortRef.current._sortDir || "desc");
     axios.get(`${BASE_URL}/tickets/paginated?${params}`)
       .then(res => {
