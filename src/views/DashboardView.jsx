@@ -85,14 +85,14 @@ export function DashboardView(props) {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 9, marginBottom: 20 }}>
                 {(dashboardStatsLoading || !dashboardStats)
-                  ? Array.from({ length: (currentUser?.role === "Admin" || currentUser?.role === "Manager") ? 7 : 5 }).map((_, i) => <StatCardSkeleton key={i} />)
+                 ? Array.from({ length: (currentUser?.role === "Admin" || currentUser?.role === "Manager") ? 7 : 4 }).map((_, i) => <StatCardSkeleton key={i} />)
                   : [
                   { label: "Open", value: dashboardStats.open, bg: "#fef3c7", accent: "#f59e0b", icon: "", action: () => { switchView("tickets"); setTvFilter("all"); setFilterStatus(["open"]); setFilterAssignment([]); setPriorityF("All"); setTicketDateFrom(getDateFrom()); } },
                   ...((currentUser?.role === "Admin" || currentUser?.role === "Manager") ? [{ label: "Unassigned", value: dashboardStats.unassigned ?? 0, bg: "#f3e8ff", accent: "#a855f7", icon: "", action: () => { switchView("tickets"); setTvFilter("all"); setFilterAssignment(["unassigned"]); setFilterStatus(["open"]); setPriorityF("All"); setTicketDateFrom(getDateFrom()); } }] : []),
                   { label: "Critical", value: dashboardStats.critical, bg: "#fee2e2", accent: "#ef4444", icon: "", action: () => { switchView("tickets"); setTvFilter("all"); setFilterStatus(["open"]); setPriorityF("Critical"); setFilterAssignment([]); setTicketDateFrom(getDateFrom()); } },
                   { label: "Closed", value: dashboardStats.closed, bg: "#dcfce7", accent: "#22c55e", icon: "", action: () => { switchView("tickets"); setTvFilter("all"); setFilterStatus(["closed"]); setFilterAssignment([]); setPriorityF("All"); setTicketDateFrom(getDateFrom()); } },
                   { label: "Total", value: dashboardStats.total, bg: "#dbeafe", accent: "#3b82f6", icon: "", action: () => { switchView("tickets"); setTvFilter("all"); setStatusF("All"); setPriorityF("All"); setTicketDateFrom(getDateFrom()); } },
-                  { label: "Reopened", value: dashboardStats.reopened, bg: "#fff7ed", accent: "#f97316", icon: "", action: () => { switchView("tickets"); setTvFilter("reopened"); setFilterStatus([]); setPriorityF("All"); setTicketDateFrom(""); } },
+                  ...((currentUser?.role === "Admin" || currentUser?.role === "Manager") ? [{ label: "Reopened", value: dashboardStats.reopened, bg: "#fff7ed", accent: "#f97316", icon: "", action: () => { switchView("tickets"); setTvFilter("reopened"); setFilterStatus([]); setPriorityF("All"); setTicketDateFrom(""); } }] : []),
                 ].map(s => (
                   <div key={s.label} onClick={s.action} style={{ background: s.bg, borderRadius: 12, padding: "16px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.1)", borderLeft: `5px solid ${s.accent}`, cursor: "pointer", transition: "all 0.2s ease" }}
                     onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.15)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
@@ -113,7 +113,7 @@ export function DashboardView(props) {
                 <>
                   {/* Row 1: Tickets Over Time + Priority */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-                    {dashboardStatsLoading ? <ChartSkeleton /> : <SmartChart title="Daily Ticket count (Over a Week)" data={dashboardDailyData} defaultColor="#3b82f6" hideTotal />}
+                    {dashboardStatsLoading ? <ChartSkeleton /> : <SmartChart title="Daily Ticket count (Over a Week)" data={dashboardDailyData} defaultColor="#3b82f6" />}
                     {dashboardStatsLoading ? <ChartSkeleton /> : <SmartChart title="Priority Distribution" data={priorityDist} defaultType="pie" />}
                   </div>
 
@@ -124,14 +124,14 @@ export function DashboardView(props) {
                         <div style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Category Breakdown</div>
                         <button onClick={() => setCatBreakdownExpanded(v => !v)} style={{ fontSize: 11, fontWeight: 600, color: "#3b82f6", background: "none", border: "none", cursor: "pointer", padding: 0 }}>{catBreakdownExpanded ? "Show Less ↑" : "View All ↓"}</button>
                       </div>
-                      {dashboardStatsLoading ? <div style={{ ...shimmerStyle, height: 200, borderRadius: 8 }} /> : <HorizontalBarChart data={categoryDistFull} maxItems={catBreakdownExpanded ? undefined : 10} />}
+                      {dashboardStatsLoading ? <div style={{ ...shimmerStyle, height: 200, borderRadius: 8 }} /> : <HorizontalBarChart data={catBreakdownExpanded ? categoryDistFull : categoryDistFull.slice(0, 10)} />}
                     </div>
                     <div style={{ background: "#fff", borderRadius: 12, padding: 18, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Closures by Person</div>
                         <button onClick={() => setClosuresByPersonExpanded(v => !v)} style={{ fontSize: 11, fontWeight: 600, color: "#3b82f6", background: "none", border: "none", cursor: "pointer", padding: 0 }}>{closuresByPersonExpanded ? "Show Less ↑" : "View All ↓"}</button>
                       </div>
-                      {dashboardStatsLoading ? <div style={{ ...shimmerStyle, height: 200, borderRadius: 8 }} /> : <HorizontalBarChart data={dashboardClosingUsersFull} maxItems={closuresByPersonExpanded ? undefined : 10} />}
+                      {dashboardStatsLoading ? <div style={{ ...shimmerStyle, height: 200, borderRadius: 8 }} /> : <HorizontalBarChart data={closuresByPersonExpanded ? dashboardClosingUsersFull : dashboardClosingUsersFull.slice(0, 10)} />}
                     </div>
                   </div>
 
