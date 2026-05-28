@@ -113,7 +113,8 @@ export function DashboardView(props) {
                 <>
                   {/* Row 1: Tickets Over Time + Priority */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-                    {dashboardStatsLoading ? <ChartSkeleton /> : <SmartChart title="Daily Ticket count (Over a Week)" data={dashboardDailyData} defaultColor="#3b82f6" />}
+                    {dashboardStatsLoading ? <ChartSkeleton /> : <SmartChart title="Daily Ticket count (Over a Week)" data={dashboardDailyData} defaultColor="#3b82f6" hideTotal defaultType="hbar" />
+}
                     {dashboardStatsLoading ? <ChartSkeleton /> : <SmartChart title="Priority Distribution" data={priorityDist} defaultType="pie" />}
                   </div>
 
@@ -124,14 +125,16 @@ export function DashboardView(props) {
                         <div style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Category Breakdown</div>
                         <button onClick={() => setCatBreakdownExpanded(v => !v)} style={{ fontSize: 11, fontWeight: 600, color: "#3b82f6", background: "none", border: "none", cursor: "pointer", padding: 0 }}>{catBreakdownExpanded ? "Show Less ↑" : "View All ↓"}</button>
                       </div>
-                      {dashboardStatsLoading ? <div style={{ ...shimmerStyle, height: 200, borderRadius: 8 }} /> : <HorizontalBarChart data={catBreakdownExpanded ? categoryDistFull : categoryDistFull.slice(0, 10)} />}
+                      {dashboardStatsLoading ? <div style={{ ...shimmerStyle, height: 200, borderRadius: 8 }} /> : <HorizontalBarChart data={categoryDistFull} maxItems={catBreakdownExpanded ? undefined : 10} />
+}
                     </div>
                     <div style={{ background: "#fff", borderRadius: 12, padding: 18, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Closures by Person</div>
                         <button onClick={() => setClosuresByPersonExpanded(v => !v)} style={{ fontSize: 11, fontWeight: 600, color: "#3b82f6", background: "none", border: "none", cursor: "pointer", padding: 0 }}>{closuresByPersonExpanded ? "Show Less ↑" : "View All ↓"}</button>
                       </div>
-                      {dashboardStatsLoading ? <div style={{ ...shimmerStyle, height: 200, borderRadius: 8 }} /> : <HorizontalBarChart data={closuresByPersonExpanded ? dashboardClosingUsersFull : dashboardClosingUsersFull.slice(0, 10)} />}
+                      {dashboardStatsLoading ? <div style={{ ...shimmerStyle, height: 200, borderRadius: 8 }} /> : <HorizontalBarChart data={dashboardClosingUsersFull} maxItems={closuresByPersonExpanded ? undefined : 10} />
+}
                     </div>
                   </div>
 
@@ -153,7 +156,7 @@ export function DashboardView(props) {
                 <>
                   {/* Viewer/Agent: 3 charts side by side */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-                    <SmartChart title="Daily Ticket count (Over a Week)" data={dashboardDailyData} defaultColor="#3b82f6" size="small" />
+                    <SmartChart title="Daily Ticket count (Over a Week)" data={dashboardDailyData} defaultColor="#3b82f6" size="small" hideTotal defaultType="hbar" />
                     <SmartChart title="Priority Distribution" data={priorityDist} defaultType="pie" size="small" />
                   </div>
                   <div style={{ background: "#faf8f4", borderRadius: 12, padding: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginTop: 12 }}>
