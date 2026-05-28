@@ -2012,21 +2012,29 @@ sequelize.sync({ alter: true }).then(async () => {
 
 // --- Scheduled Tasks CRUD ---
 
+// IST = UTC+5:30. All task times are entered as IST in the UI.
+// On GCP (UTC), new Date() local methods would misfire. Convert explicitly.
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+function nowIST() { return new Date(Date.now() + IST_OFFSET_MS); }
+function istToUtc(d) { return new Date(d.getTime() - IST_OFFSET_MS); }
+
 function calcNextRun(task, fromDate) {
     const hhmm = (task.timeOfDay || "09:00").split(":");
     const hh = parseInt(hhmm[0]); const mm = parseInt(hhmm[1]);
-    const now = fromDate ? new Date(fromDate) : new Date();
+    // Work in IST throughout, convert to UTC only at return
+    const nowUTC = fromDate ? new Date(fromDate) : new Date();
+    const now = new Date(nowUTC.getTime() + IST_OFFSET_MS); // now in IST
     const next = new Date(now);
     next.setSeconds(0); next.setMilliseconds(0);
     if (task.frequency === "daily") {
         next.setHours(hh, mm, 0, 0);
         if (next <= now) next.setDate(next.getDate() + 1);
     } else if (task.frequency === "weekly") {
-    const target = task.dayOfWeek != null ? task.dayOfWeek : 1;
-    let days = (7 + target - next.getDay()) % 7;
-    next.setDate(next.getDate() + days);
-    next.setHours(hh, mm, 0, 0);
-    if (next <= now) next.setDate(next.getDate() + 7);
+        const target = task.dayOfWeek != null ? task.dayOfWeek : 1;
+        let days = (7 + target - next.getDay()) % 7;
+        next.setDate(next.getDate() + days);
+        next.setHours(hh, mm, 0, 0);
+        if (next <= now) next.setDate(next.getDate() + 7);
     } else if (task.frequency === "biweekly") {
         const targets = (task.daysOfWeek && task.daysOfWeek.length === 2) ? task.daysOfWeek : [1, 4];
         let best = null;
@@ -2038,13 +2046,13 @@ function calcNextRun(task, fromDate) {
             if (candidate <= now) candidate.setDate(candidate.getDate() + 7);
             if (!best || candidate < best) best = candidate;
         }
-        return best;
-    }else if (task.frequency === "monthly") {
+        return istToUtc(best);
+    } else if (task.frequency === "monthly") {
         const dom = task.dayOfMonth != null ? task.dayOfMonth : 1;
         next.setDate(dom); next.setHours(hh, mm, 0, 0);
         if (next <= now) { next.setMonth(next.getMonth() + 1); next.setDate(dom); }
     }
-    return next;
+    return istToUtc(next);
 }
 
 app.get("/api/scheduled-tasks", async (req, res) => {
