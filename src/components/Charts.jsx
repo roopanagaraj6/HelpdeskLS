@@ -138,16 +138,19 @@ export const PieChart = ({ data, donut = false }) => {
             </>
           ) : (
             <>
-              {segs.map((s, i) => {
-                const isH = hov === i;
-                const { lx, ly } = sliceLabelPos(s);
-                return (
-                  <g key={i} style={{ cursor: "pointer" }} onMouseEnter={() => setHov(i)} onMouseLeave={() => setHov(null)}>
-                    <path d={arcPath(s)} fill={s.color} stroke="#fff" strokeWidth={isH ? 3 : 1.5} style={{ filter: isH ? `drop-shadow(0 3px 10px ${s.color}99)` : "none", opacity: isH ? 1 : 0.88, transition: "all 0.15s" }} />
-                    {isH && (s.end - s.start) > 0.18 && <g><rect x={lx - 18} y={ly - 11} width={36} height={18} rx={4} fill="#0f172a" opacity={0.92} /><text x={lx} y={ly + 5} textAnchor="middle" fontSize={11} fontWeight={700} fill="#fff" fontFamily="DM Sans,sans-serif">{s.value}</text></g>}
-                  </g>
-                );
-              })}
+              {total === 0
+                ? <circle cx={cx} cy={cy} r={r} fill="#f1f5f9" stroke="#e2e8f0" strokeWidth={1.5} />
+                : segs.map((s, i) => {
+                    const isH = hov === i;
+                    const { lx, ly } = sliceLabelPos(s);
+                    return (
+                      <g key={i} style={{ cursor: "pointer" }} onMouseEnter={() => setHov(i)} onMouseLeave={() => setHov(null)}>
+                        <path d={arcPath(s)} fill={s.color} stroke="#fff" strokeWidth={isH ? 3 : 1.5} style={{ filter: isH ? `drop-shadow(0 3px 10px ${s.color}99)` : "none", opacity: isH ? 1 : 0.88, transition: "all 0.15s" }} />
+                        {isH && (s.end - s.start) > 0.18 && <g><rect x={lx - 18} y={ly - 11} width={36} height={18} rx={4} fill="#0f172a" opacity={0.92} /><text x={lx} y={ly + 5} textAnchor="middle" fontSize={11} fontWeight={700} fill="#fff" fontFamily="DM Sans,sans-serif">{s.value}</text></g>}
+                      </g>
+                    );
+                  })
+              }
               <text x={cx} y={cy - 8} textAnchor="middle" fontSize={16} fontWeight={700} fill="#1e293b" fontFamily="DM Sans,sans-serif">{total}</text>
               <text x={cx} y={cy + 12} textAnchor="middle" fontSize={10} fill="#94a3b8" fontFamily="DM Sans,sans-serif">total</text>
             </>

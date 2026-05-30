@@ -1464,7 +1464,7 @@ app.get("/api/tickets/paginated", async (req, res) => {
 
         const { count, rows } = await Ticket.findAndCountAll({
             where,
-            attributes: { exclude: ["image", ...(req.query.reopened === "1" || req.query.includeTimeline === "1" ? [] : ["timeline"]), "comments", "description"] },
+            attributes: { exclude: ["image", "comments", "description"] },
             order: [["createdAt", sortDir]],
             limit,
             offset,

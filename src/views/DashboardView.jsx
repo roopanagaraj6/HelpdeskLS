@@ -154,10 +154,14 @@ export function DashboardView(props) {
                 </>
               ) : (
                 <>
-                  {/* Viewer/Agent: 3 charts side by side */}
+                  {/* Viewer/Agent: 2 charts side by side */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-                    <SmartChart title="Daily Ticket count (Over a Week)" data={dashboardDailyData} defaultColor="#3b82f6" size="small" hideTotal defaultType="hbar" />
-                    <SmartChart title="Priority Distribution" data={priorityDist} defaultType="pie" size="small" />
+                    <div style={{ background: "#fff", borderRadius: 12, padding: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                      <SmartChart title="Daily Ticket count (Over a Week)" data={dashboardDailyData} defaultColor="#3b82f6" size="small" hideTotal defaultType="hbar" />
+                    </div>
+                    <div style={{ background: "#fff", borderRadius: 12, padding: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                      <SmartChart title="Priority Distribution" data={priorityDist} defaultType="pie" size="small" />
+                    </div>
                   </div>
                   <div style={{ background: "#faf8f4", borderRadius: 12, padding: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginTop: 12 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10, color: "#374151" }}>My Recent Tickets</div>
