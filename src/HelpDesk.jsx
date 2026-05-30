@@ -479,7 +479,7 @@ export default function HelpDesk() {
         setTicketsLoading(false);
       })
       .catch(() => { setTicketsLoading(false); });
-  }, [ticketPage, view, debouncedSearch, priorityF, orgFilter, filterStatus, filterCategory, filterAssignee, filterAssignment, tvFilter, ticketSort, dashboardTimePeriod, ticketDateFrom]);
+  }, [ticketPage, view, debouncedSearch, priorityF, orgFilter, filterStatus, filterCategory, filterAssignee, filterAssignment, tvFilter, ticketSort, dashboardTimePeriod, ticketDateFrom, currentUser]);
 
   // ── Project filters ──
   const [projSearch, setProjSearch] = useState("");
