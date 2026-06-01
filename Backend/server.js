@@ -1464,7 +1464,7 @@ app.get("/api/tickets/paginated", async (req, res) => {
 
         const { count, rows } = await Ticket.findAndCountAll({
             where,
-            attributes: { exclude: ["image", "comments", "description"] },
+            attributes: { exclude: ["image", "comments"] },
             order: [["createdAt", sortDir]],
             limit,
             offset,
