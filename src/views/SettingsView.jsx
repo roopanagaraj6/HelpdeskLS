@@ -41,8 +41,11 @@ function ScheduledTasksTab({ currentUser, orgs, categories, users, locations, de
 
   const save = async () => {
     if (!form.name.trim()) return setCustomAlert({ show: true, message: "Task name is required", type: "error" });
-    if (!form.summary.trim()) return setCustomAlert({ show: true, message: "Ticket summary is required", type: "error" });
+    if (!form.summary.trim()) return setCustomAlert({ show: true, message: "Summary is required", type: "error" });
+    if (!form.description?.trim()) return setCustomAlert({ show: true, message: "Description is required", type: "error" });
+    if (!form.priority) return setCustomAlert({ show: true, message: "Priority is required", type: "error" });
     if (!form.org.trim()) return setCustomAlert({ show: true, message: "Organisation is required", type: "error" });
+    if (!form.category.trim()) return setCustomAlert({ show: true, message: "Category is required", type: "error" });
     try {
       if (editTask) {
         const r = await axios.put(BASE_URL + "/scheduled-tasks/" + editTask.id, form);
@@ -218,8 +221,8 @@ function ScheduledTasksTab({ currentUser, orgs, categories, users, locations, de
                 <input style={iS} placeholder="Ticket summary when auto-created" value={form.summary}
                   onChange={e => setForm(f => ({ ...f, summary: e.target.value }))} />
               </FF>
-              <FF label="Description">
-                <textarea style={{ ...iS, minHeight: 70, resize: "vertical" }} placeholder="Optional description"
+              <FF label="Description *">
+                <textarea style={{ ...iS, minHeight: 70, resize: "vertical" }} placeholder="Mandatory description"
                   value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
               </FF>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 14px" }}>
@@ -235,12 +238,12 @@ function ScheduledTasksTab({ currentUser, orgs, categories, users, locations, de
                     {orgDepts.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
                   </select>
                 </FF>
-                <FF label="Priority">
+                <FF label="Priority *">
                   <select style={sS} value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}>
                     {["Critical","High","Standard","Medium"].map(p => <option key={p}>{p}</option>)}
                   </select>
                 </FF>
-                <FF label="Category">
+                <FF label="Category *">
                   <select style={sS} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
                     <option value="">-- Select Category --</option>
                     {(categories || []).map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
