@@ -81,6 +81,7 @@ export function Modals(props) {
     forwardNote, setForwardNote,
     showForwardAgentDD, setShowForwardAgentDD,
     handleForward,
+    handleForwardTicket,
 
     // vendor / repair
     showVendor, setShowVendor,

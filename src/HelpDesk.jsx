@@ -1952,8 +1952,8 @@ export default function HelpDesk() {
     toggleAssignee,
     addCC, clearAllTickets, closeTicketWithRemark,
     compressImage } = useTicketHandlers(ctx);
-  const { handleForward, handleSendForRepair,
-          handleVendorReturn }                            = useForwardHandlers(ctx);
+  const { handleForward, handleForwardTicket, handleSendForRepair,
+          handleVendorReturn }                            = useForwardHandlers({ ...ctx, forwardRequests, setForwardRequests });
   const { addOrg, deleteOrg, addCat, deleteCat,
         updateCatSubcategories, addUser, deleteUser,
         addAttr, deleteAttr, updateAttrLayout,
@@ -3427,6 +3427,8 @@ export default function HelpDesk() {
   selectedForwardAgent={selectedForwardAgent} setSelectedForwardAgent={setSelectedForwardAgent}
   forwardNote={forwardNote} setForwardNote={setForwardNote}
   handleForward={handleForward}
+  handleForwardTicket={handleForwardTicket}
+  handleSendForRepair={handleSendForRepair} handleVendorReturn={handleVendorReturn}
   showVendor={showVendor} setShowVendor={setShowVendor}
   vendorReturnNote={vendorReturnNote} setVendorReturnNote={setVendorReturnNote}
   vendorReturnOutcome={vendorReturnOutcome} setVendorReturnOutcome={setVendorReturnOutcome}

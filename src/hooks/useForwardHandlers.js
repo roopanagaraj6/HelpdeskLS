@@ -1,5 +1,5 @@
 import axios from "axios";
-import { TICKETS_API, VENDORS_API, BASE_URL } from "../constants/api";
+import { TICKETS_API, VENDORS_API, BASE_URL, NOTIFICATIONS_API } from "../constants/api";
 
 /**
  * Forward ticket, send-for-repair, and vendor-return handlers.
@@ -17,6 +17,10 @@ export function useForwardHandlers(ctx) {
     setVendorReturnNote, setVendorReturnOutcome,
     setCustomAlert,
     addDailyNotif,
+    forwardNote: fwdReason, setForwardNote: setFwdReason,
+    selectedForwardAgent: fwdTargetAgent, setSelectedForwardAgent: setFwdTargetAgent,
+    forwardRequests, setForwardRequests,
+    inboxItems, setInboxItems,
   } = ctx;
 
   // ─── FORWARD TICKET (v3 - ROLE-BASED) ───────────────────────────────────────────────────

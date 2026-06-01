@@ -1,5 +1,5 @@
 import axios from "axios";
-import { NOTIFICATIONS_API } from "../constants/api";
+import { NOTIFICATIONS_API, TICKETS_API } from "../constants/api";
 
 /**
  * Notification click, inbox read/accept/reject,
@@ -10,12 +10,13 @@ export function useNavHandlers(ctx) {
     currentUser,
     dailyNotifs, setBellUnread,
     setShowBellPanel, setShowInboxPanel,
-    inboxItems, setInboxItems,
+    inboxItems, setInboxItems, setInboxUnread,
     seenActivityIds,
     setView, setTvFilter, setPvFilter, setSettingsTab,
     setSelTicket, setSelProject,
-    tickets, projects,
-    setCustomAlert,
+    tickets, setTickets, projects,
+    users,
+    setCustomAlert, addDailyNotif,
     view, cvd, cpv,
   } = ctx;
 
@@ -140,9 +141,13 @@ export function useNavHandlers(ctx) {
   // Accept a forward request from inbox (Admin/Manager action)
   const acceptInboxForwardRequest = async (item) => {
     try {
-      const ticket = tickets.find(t => t.id === item.ticketId);
+      let ticket = tickets.find(t => t.id === item.ticketId);
+      if (!ticket) {
+        const res = await axios.get(`${TICKETS_API}/${item.ticketId}`);
+        ticket = res.data;
+      }
       if (!ticket) return;
-      const agent = item.toAgent;
+      const agent = typeof item.toAgent === "string" ? JSON.parse(item.toAgent) : item.toAgent;
       const nowISO = new Date().toISOString();
       const update = {
         ...ticket, assignees: [agent], updated: nowISO,
@@ -193,7 +198,8 @@ export function useNavHandlers(ctx) {
       });
       setCustomAlert({ show: true, message: "✅ Forward approved and ticket reassigned!", type: "success" });
     } catch (e) {
-      setCustomAlert({ show: true, message: "Failed to approve forward", type: "error" });
+      console.error("acceptInboxForwardRequest error:", e);
+      setCustomAlert({ show: true, message: "Failed to approve forward: " + e.message, type: "error" });
     }
   };
 
