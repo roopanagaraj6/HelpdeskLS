@@ -714,7 +714,9 @@ export function Modals(props) {
           </div>
 
           {/* Forward Ticket Button */}
-          <button onClick={() => setShowForward(true)} style={{ ...bG, padding: "6px 14px", marginBottom: 14, fontSize: 12 }}>Forward Ticket ➦</button>
+          {selTicket.status !== "Closed" && (
+            <button onClick={() => setShowForward(true)} style={{ ...bG, padding: "6px 14px", marginBottom: 14, fontSize: 12 }}>Forward Ticket ➦</button>
+          )}
 
           {/* Timeline View Button */}
           <button onClick={() => { setShowTimelineView(true); setTimelineTab("external"); }} style={{ ...bG, padding: "6px 14px", marginBottom: 14, marginLeft: 8, fontSize: 12, background: "#f3e8ff", color: "#7c3aed" }}>📜 View Timeline</button>
