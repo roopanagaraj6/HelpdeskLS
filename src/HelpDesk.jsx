@@ -421,8 +421,7 @@ export default function HelpDesk() {
     if (view !== "tickets" && !(_isAgentRole && view === "dashboard")) return;
     setTicketsLoading(true);
     const _isDashboardFetch = _isAgentRole && view === "dashboard";
-    const params = new URLSearchParams({ limit: _isDashboardFetch ? 500 : 25, page: _isDashboardFetch ? 1 : ticketPage, ..._isDashboardFetch && { includeTimeline: 1 } });
-    if (debouncedSearch) params.set("search", debouncedSearch);
+    const params = new URLSearchParams({ limit: _isDashboardFetch ? 999999 : 25, page: _isDashboardFetch ? 1 : ticketPage, ..._isDashboardFetch && { includeTimeline: 1 } });    if (debouncedSearch) params.set("search", debouncedSearch);
     if (priorityF !== "All") params.set("priority", priorityF);
     if (orgFilter !== "all") params.set("org", orgFilter);
 
