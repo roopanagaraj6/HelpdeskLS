@@ -460,6 +460,7 @@ app.put("/api/users/:id", async (req, res) => {
 
         // Hash password if provided
         if (req.body.password) req.body.password = await bcrypt.hash(req.body.password, 10);
+        if (req.body.email) req.body.email = req.body.email.toLowerCase();
 
         // Strip non-column keys to prevent Sequelize errors
         const { _isSystemUpdate, forceLogout: incomingForceLogout, ...updateData } = req.body;

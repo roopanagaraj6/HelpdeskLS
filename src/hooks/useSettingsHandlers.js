@@ -294,7 +294,8 @@ export function useSettingsHandlers(ctx) {
     try {
       const updates = {
         name: editUserForm.name,
-        email: editUserForm.email
+        email: editUserForm.email,
+        _isSystemUpdate: true
       };
       // Only send password if it was changed
       if (editUserForm.password) {
