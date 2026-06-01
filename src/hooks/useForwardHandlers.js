@@ -252,8 +252,8 @@ export function useForwardHandlers(ctx) {
       await axios.put(`${TICKETS_API}/${t.id}`, update);
       setTickets(p => p.map(x => x.id === t.id ? { ...update, updated: new Date(nowISO) } : x));
       setSelTicket({ ...update, updated: new Date(nowISO) });
-      setShowVendorReturn(false); setVendorReturnNote(""); setVendorReturnOutcome("fixed");
-      showToast(resolved ? "✅ Ticket closed — item fixed" : "🔄 Ticket reopened — item not fixed", "success");
+      setShowVendor(false); setVendorReturnNote(""); setVendorReturnOutcome("fixed");
+      setCustomAlert({ show: true, message: resolved ? "✅ Ticket closed — item fixed" : "🔄 Ticket reopened — item not fixed", type: "success" });
     } catch (e) { setCustomAlert({ show: true, message: "Failed to update return", type: "error" }); }
   };
 
