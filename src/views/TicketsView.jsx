@@ -199,8 +199,27 @@ export const TicketsView = React.memo(function TicketsView(props) {
                       <div style={{ position: "fixed", inset: 0, zIndex: 499 }} onClick={() => setShowTicketExport(false)} />
                       <div style={{ position: "fixed", top: (ticketExportBtnRef.current?.getBoundingClientRect().bottom || 0) + 4, right: window.innerWidth - (ticketExportBtnRef.current?.getBoundingClientRect().right || 0), background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 500, minWidth: 160, padding: 8 }}>
                         <div onClick={() => { setShowTicketExport(false); setTicketExportCols(new Set(ALL_TICKET_COLS)); setShowTicketColExport(true); setTicketExportMode("csv"); }} style={{ padding: "7px 12px", fontSize: 13, cursor: "pointer", borderRadius: 6, color: "#374151" }}>📄 Export CSV</div>
-                        <div onClick={() => { exportJSON(allSortedTickets, "tickets"); setShowTicketExport(false); }} style={{ padding: "7px 12px", fontSize: 13, cursor: "pointer", borderRadius: 6, color: "#374151" }}>📦 Export JSON</div>
-                        <div onClick={() => { setShowTicketExport(false); setTicketExportCols(new Set(ALL_TICKET_COLS)); setShowTicketColExport(true); setTicketExportMode("print"); }} style={{ padding: "7px 12px", fontSize: 13, cursor: "pointer", borderRadius: 6, color: "#374151" }}>🖨 Print</div>
+                        <div onClick={async () => {
+                          setShowTicketExport(false);
+                          try {
+                            props.setCustomAlert && props.setCustomAlert({ show: true, message: "⏳ Fetching all tickets for export...", type: "success" });
+                            const res = await axios.get(`${BASE_URL}/tickets/report`);
+                            const data = (res.data.tickets || []).sort((a, b) => {
+                              const na = parseInt((a.id || "").replace(/\D/g, ""), 10) || 0;
+                              const nb = parseInt((b.id || "").replace(/\D/g, ""), 10) || 0;
+                              return nb - na;
+                            });
+                            if (!data.length) { props.setCustomAlert && props.setCustomAlert({ show: true, message: "No tickets to export", type: "error" }); return; }
+                            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+                            const a = document.createElement("a");
+                            a.href = URL.createObjectURL(blob);
+                            a.download = `tickets_export_${new Date().toISOString().split("T")[0]}.json`;
+                            a.click();
+                            props.setCustomAlert && props.setCustomAlert({ show: true, message: `✅ Exported ${data.length} tickets`, type: "success" });
+                          } catch (e) {
+                            props.setCustomAlert && props.setCustomAlert({ show: true, message: "Export failed: " + e.message, type: "error" });
+                          }
+                        }} style={{ padding: "7px 12px", fontSize: 13, cursor: "pointer", borderRadius: 6, color: "#374151" }}>📦 Export JSON</div>
                       </div>
                     </>
                   )}
