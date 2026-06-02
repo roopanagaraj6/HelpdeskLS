@@ -419,7 +419,7 @@ export default function HelpDesk() {
   useEffect(() => {
     const _isAgentRole = currentUser?.role === "Agent" || currentUser?.role === "Viewer";
     if (view !== "tickets" && !(_isAgentRole && view === "dashboard")) return;
-    if (_isAgentRole && view === "tickets" && tickets.length > 0 && tickets.length <= 25 && tvFilter === "all" && !debouncedSearch && priorityF === "All" && orgFilter === "all" && filterStatus.length === 0 && filterAssignment.length === 0 && filterAssignee.length === 0 && !filterCategory && ticketPage === 1 && tickets[0]?.timeline !== undefined) return;
+    if (_isAgentRole && view === "tickets" && tickets.length > 0 && tickets.length <= 25 && tvFilter === "all" && !debouncedSearch && priorityF === "All" && orgFilter === "all" && filterStatus.length === 0 && filterAssignment.length === 0 && filterAssignee.length === 0 && !filterCategory && ticketPage === 1 && tickets[0]?.timeline === undefined) return;
     setTicketsLoading(true);
     const _isDashboardFetch = _isAgentRole && view === "dashboard";
     const params = new URLSearchParams({ limit: _isDashboardFetch ? 999999 : 25, page: _isDashboardFetch ? 1 : ticketPage, ..._isDashboardFetch && { includeTimeline: 1 } });    

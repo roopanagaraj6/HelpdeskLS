@@ -165,13 +165,13 @@ export function DashboardView(props) {
                   </div>
                   <div style={{ background: "#faf8f4", borderRadius: 12, padding: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginTop: 12 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10, color: "#374151" }}>My Recent Tickets</div>
-                    {tickets.filter(t => t.assignees?.some(a => a.id === currentUser?.id)).slice(0, 10).map(t => (
+                    {tickets.filter(t => t.assignees?.some(a => a.id === currentUser?.id || a.name === currentUser?.name)).slice(0, 10).map(t => (
                       <div key={t.id} onClick={() => setSelTicket(t)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px", borderRadius: 8, cursor: "pointer", border: "1px solid #f1f5f9", marginBottom: 5 }}>
                         <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.summary}</div><div style={{ fontSize: 10, color: "#94a3b8" }}>{t.id} · {t.org}</div></div>
                         <Badge label={t.status} style={{...STATUS_COLOR[t.status], fontSize: 10}}/>
                       </div>
                     ))}
-                    {tickets.filter(t => t.assignees?.some(a => a.id === currentUser?.id)).length === 0 && <div style={{ color: "#94a3b8", fontSize: 12 }}>No tickets assigned</div>}
+                    {tickets.filter(t => t.assignees?.some(a => a.id === currentUser?.id || a.name === currentUser?.name)).length === 0 && <div style={{ color: "#94a3b8", fontSize: 12 }}>No tickets assigned</div>}
                   </div>
                   {/* Viewer/Agent: Horizontal Bar Charts row */}
                   {/* NO Recent Tickets for Viewer/Agent */}
