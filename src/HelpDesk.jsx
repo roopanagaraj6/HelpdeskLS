@@ -156,6 +156,8 @@ export default function HelpDesk() {
   const [customAttrs, setCustomAttrs] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 900;
   const [bootPhase, setBootPhase] = useState("waking"); // "waking" | "loading" | ""
   const [targetTable, setTargetTable] = useState("tickets");
   const [exportFilterType, setExportFilterType] = useState("all"); // all, assignee, category, type
@@ -2391,7 +2393,7 @@ export default function HelpDesk() {
       </div>}
 
       {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
-      <div style={{ width: 220, background: "#0f172a", display: "flex", flexDirection: "column", flexShrink: 0 }}>
+      <div style={{ width: 220, background: "#0f172a", display: "flex", flexDirection: "column", flexShrink: 0, position: isMobile ? "fixed" : "relative", left: isMobile ? (sidebarOpen ? 0 : -220) : 0, top: 0, bottom: 0, zIndex: isMobile ? 1000 : "auto", transition: "left 0.3s ease", height: "100vh" }}>
         <div style={{ padding: "18px 18px 14px", borderBottom: "1px solid #1e293b" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 36, height: 36, background: "linear-gradient(135deg,#3b82f6,#8b5cf6)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#fff" }}>⚡</div>
@@ -3034,10 +3036,14 @@ export default function HelpDesk() {
       {/* ── MAIN CONTENT ────────────────────────────────────────────────── */}
       <div style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column" }}>
         <div style={{ background: "#fff", borderBottom: "1px solid #f1f5f9", padding: "11px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
-          <div>
+          {isMobile && sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 999 }} />}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {isMobile && <button onClick={() => setSidebarOpen(v => !v)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#1e293b", padding: 0, lineHeight: 1 }}>☰</button>}
+            <div>
             <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{getPageTitle()}</h1>
             {view === "tickets" && <p style={{ margin: 0, fontSize: 11, color: "#94a3b8" }}>{cvd.desc}</p>}
             {view === "projects" && <p style={{ margin: 0, fontSize: 11, color: "#94a3b8" }}>{cpv.desc}</p>}
+            </div>
           </div>
           <div style={{ display: "flex", gap: 9, alignItems: "center" }}>
             {view === "dashboard" && (
