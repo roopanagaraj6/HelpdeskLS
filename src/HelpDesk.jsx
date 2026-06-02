@@ -61,7 +61,7 @@ function BootScreen({ phase }) {
 
   return (
     <div style={{
-      display: "flex", height: "100vh", alignItems: "center", justifyContent: "center",
+      display: "flex", height: "100dvh", alignItems: "center", justifyContent: "center",
       flexDirection: "column", fontFamily: "'DM Sans', sans-serif",
       background: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 60%, #0f172a 100%)",
       position: "relative", overflow: "hidden",
@@ -2022,7 +2022,7 @@ export default function HelpDesk() {
     const videoUrl = "https://www.artofliving.org/in-en/app/uploads/2023/06/Sunrise.webm"; // USER: Set your video URL here
 
     return (
-      <div style={{ display: "flex", height: "100vh", fontFamily: "'Arial Hebrew', 'DM Sans', sans-serif", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
+      <div style={{ display: "flex", height: "100dvh", fontFamily: "'Arial Hebrew', 'DM Sans', sans-serif", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
         {/* FULL SCREEN VIDEO BACKGROUND */}
         <video
           autoPlay
@@ -2148,7 +2148,7 @@ export default function HelpDesk() {
   // ─── MAIN APP ──────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: "flex", height: "100vh", fontFamily: "'DM Sans',sans-serif", background: "#f8fafc", color: "#1e293b", overflow: "hidden", position: "relative" }}>
+    <div style={{ display: "flex", height: "100dvh", fontFamily: "'DM Sans',sans-serif", background: "#f8fafc", color: "#1e293b", overflow: "hidden", position: "relative" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');html{font-size:14px;-webkit-text-size-adjust:100%;text-size-adjust:100%}*{box-sizing:border-box;-webkit-font-smoothing:antialiased;moz-osx-font-smoothing:grayscale}::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}input:focus,select:focus,textarea:focus{border-color:#3b82f6!important;outline:none;background:#fff!important}.rh:hover td{background:#f8fafc!important}@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}`}</style>
 
       {/* ✅ NEW: Custom Alert */}
@@ -2393,8 +2393,7 @@ export default function HelpDesk() {
       </div>}
 
       {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
-      <div style={{ width: 220, background: "#0f172a", display: "flex", flexDirection: "column", flexShrink: 0, position: isMobile ? "fixed" : "relative", left: isMobile ? (sidebarOpen ? 0 : -220) : 0, top: 0, bottom: 0, zIndex: isMobile ? 1000 : "auto", transition: "left 0.3s ease", height: "100vh" }}>
-        <div style={{ padding: "18px 18px 14px", borderBottom: "1px solid #1e293b" }}>
+      <div style={{ width: 220, background: "#0f172a", display: "flex", flexDirection: "column", flexShrink: 0, position: isMobile ? "fixed" : "relative", left: isMobile ? (sidebarOpen ? 0 : -220) : 0, top: 0, bottom: 0, zIndex: isMobile ? 1000 : "auto", transition: "left 0.3s ease", height: "100dvh", overflowY: "auto" }}>        <div style={{ padding: "18px 18px 14px", borderBottom: "1px solid #1e293b" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 36, height: 36, background: "linear-gradient(135deg,#3b82f6,#8b5cf6)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#fff" }}>⚡</div>
             <div>
