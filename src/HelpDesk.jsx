@@ -2148,7 +2148,7 @@ export default function HelpDesk() {
   // ─── MAIN APP ──────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: "flex", height: "100vh", fontFamily: "'DM Sans',sans-serif", background: "#f8fafc", color: "#1e293b", overflow: "hidden" }}>
+    <div style={{ display: "flex", height: "100vh", fontFamily: "'DM Sans',sans-serif", background: "#f8fafc", color: "#1e293b", overflow: "hidden", position: "relative" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');html{font-size:14px;-webkit-text-size-adjust:100%;text-size-adjust:100%}*{box-sizing:border-box;-webkit-font-smoothing:antialiased;moz-osx-font-smoothing:grayscale}::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}input:focus,select:focus,textarea:focus{border-color:#3b82f6!important;outline:none;background:#fff!important}.rh:hover td{background:#f8fafc!important}@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}`}</style>
 
       {/* ✅ NEW: Custom Alert */}
@@ -3034,7 +3034,7 @@ export default function HelpDesk() {
       </Modal>
 
       {/* ── MAIN CONTENT ────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column", minWidth: 0, width: isMobile ? "100%" : undefined }}>
         <div style={{ background: "#fff", borderBottom: "1px solid #f1f5f9", padding: "11px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
           {isMobile && sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 999 }} />}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
