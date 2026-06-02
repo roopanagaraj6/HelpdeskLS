@@ -2211,7 +2211,9 @@ export default function HelpDesk() {
                 setShowTicketColExport(false);
                 setCustomAlert({ show: true, message: "⏳ Fetching all tickets for export...", type: "success" });
                 try {
-                  const res = await axios.get(`${BASE_URL}/tickets/report`);
+                  const isAgentRole = currentUser?.role === "Agent" || currentUser?.role === "Viewer";
+                  const reportUrl = isAgentRole ? `${BASE_URL}/tickets/report?assignee=${encodeURIComponent(currentUser.name)}` : `${BASE_URL}/tickets/report`;
+                  const res = await axios.get(reportUrl);
                   const allTickets = res.data.tickets || [];
                   if (ticketExportMode === "csv") {
                     const headers = cols.map(c => colLabels[c]||c);

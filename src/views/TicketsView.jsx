@@ -203,7 +203,9 @@ export const TicketsView = React.memo(function TicketsView(props) {
                           setShowTicketExport(false);
                           try {
                             props.setCustomAlert && props.setCustomAlert({ show: true, message: "⏳ Fetching all tickets for export...", type: "success" });
-                            const res = await axios.get(`${BASE_URL}/tickets/report`);
+                            const isAgentRole = props.currentUser?.role === "Agent" || props.currentUser?.role === "Viewer";
+                            const reportUrl = isAgentRole ? `${BASE_URL}/tickets/report?assignee=${encodeURIComponent(props.currentUser.name)}` : `${BASE_URL}/tickets/report`;
+                            const res = await axios.get(reportUrl);
                             const data = (res.data.tickets || []).sort((a, b) => {
                               const na = parseInt((a.id || "").replace(/\D/g, ""), 10) || 0;
                               const nb = parseInt((b.id || "").replace(/\D/g, ""), 10) || 0;
