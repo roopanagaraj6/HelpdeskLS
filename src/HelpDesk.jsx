@@ -278,6 +278,7 @@ export default function HelpDesk() {
     if (dashboardTimePeriod !== "all") {
       const d = new Date();
       if (dashboardTimePeriod === "1d") d.setHours(0, 0, 0, 0);
+      else if (dashboardTimePeriod === "yesterday") { d.setDate(d.getDate() - 1); d.setHours(0, 0, 0, 0); }
       else if (dashboardTimePeriod === "7d") d.setDate(d.getDate() - 7);
       else if (dashboardTimePeriod === "1m") d.setMonth(d.getMonth() - 1);
       else if (dashboardTimePeriod === "3m") d.setMonth(d.getMonth() - 3);
@@ -1395,6 +1396,11 @@ export default function HelpDesk() {
       case "1d":
         cutoffDate.setHours(0, 0, 0, 0);
         break;
+      case "yesterday":
+        cutoffDate.setDate(cutoffDate.getDate() - 1);
+        cutoffDate.setHours(0, 0, 0, 0);
+        cutoffDate.setMilliseconds(cutoffDate.setHours(0, 0, 0, 0));
+        break;
       case "7d":
         cutoffDate.setDate(cutoffDate.getDate() - 7);
         break;
@@ -1415,10 +1421,20 @@ export default function HelpDesk() {
         return data;  // No time filtering
     }
 
-    return data.filter(t => {
-      const dateField = t.status === "Closed"
-        ? (t.closedAt ? new Date(t.closedAt) : (() => { const e = (t.timeline||[]).slice().reverse().find(e=>e.action?.includes("Status changed to Closed")); return e?.date ? new Date(e.date) : (t.created instanceof Date ? t.created : new Date(t.created)); })())
-        : (t.created instanceof Date ? t.created : new Date(t.created));
+    if (dashboardTimePeriod === "yesterday") {
+  const yStart = new Date(); yStart.setDate(yStart.getDate() - 1); yStart.setHours(0, 0, 0, 0);
+  const yEnd = new Date(); yEnd.setHours(0, 0, 0, 0);
+  return data.filter(t => {
+    const dateField = t.status === "Closed"
+      ? (t.closedAt ? new Date(t.closedAt) : (() => { const e = (t.timeline||[]).slice().reverse().find(e=>e.action?.includes("Status changed to Closed")); return e?.date ? new Date(e.date) : (t.created instanceof Date ? t.created : new Date(t.created)); })())
+      : (t.created instanceof Date ? t.created : new Date(t.created));
+    return dateField >= yStart && dateField < yEnd;
+  });
+}
+return data.filter(t => {
+  const dateField = t.status === "Closed"
+    ? (t.closedAt ? new Date(t.closedAt) : (() => { const e = (t.timeline||[]).slice().reverse().find(e=>e.action?.includes("Status changed to Closed")); return e?.date ? new Date(e.date) : (t.created instanceof Date ? t.created : new Date(t.created)); })())
+    : (t.created instanceof Date ? t.created : new Date(t.created));
       return dateField >= cutoffDate;
     });
   }, [fbr, dashboardOrg, dashboardTimePeriod]);
@@ -1725,6 +1741,7 @@ export default function HelpDesk() {
     if (dashboardTimePeriod !== "all") {
       const cutoff = new Date();
       if (dashboardTimePeriod === "1d") cutoff.setHours(0, 0, 0, 0);
+      else if (dashboardTimePeriod === "yesterday") { cutoff.setDate(cutoff.getDate() - 1); cutoff.setHours(0, 0, 0, 0); }
       else if (dashboardTimePeriod === "7d") cutoff.setDate(cutoff.getDate() - 7);
       else if (dashboardTimePeriod === "1m") cutoff.setMonth(cutoff.getMonth() - 1);
       else if (dashboardTimePeriod === "3m") cutoff.setMonth(cutoff.getMonth() - 3);
@@ -3052,6 +3069,7 @@ export default function HelpDesk() {
                   <select value={dashboardTimePeriod} onChange={e => setDashboardTimePeriod(e.target.value)} style={{ ...sS, width: 170, fontSize: 13, padding: "7px 30px 7px 10px", appearance: "none", WebkitAppearance: "none", borderColor: dashboardTimePeriod !== "all" ? "#3b82f6" : "#e2e8f0", background: dashboardTimePeriod !== "all" ? "#eff6ff" : "#fafafa", color: dashboardTimePeriod !== "all" ? "#1d4ed8" : "#1e293b", fontWeight: dashboardTimePeriod !== "all" ? 600 : 400 }}>
                     <option value="all">📊 All Time</option>
                     <option value="1d">📅 Today</option>
+                    <option value="yesterday">📅 Yesterday</option>
                     <option value="7d">📅 Last 7 Days</option>
                     <option value="1m">📊 Last Month</option>
                     <option value="3m">📊 Last 3 Months</option>

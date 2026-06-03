@@ -55,6 +55,7 @@ export function DashboardView(props) {
     if (!dashboardTimePeriod || dashboardTimePeriod === "all") return "";
     const d = new Date();
     if (dashboardTimePeriod === "1d") d.setHours(0,0,0,0);
+    else if (dashboardTimePeriod === "yesterday") { d.setDate(d.getDate()-1); d.setHours(0,0,0,0); }
     else if (dashboardTimePeriod === "7d") d.setDate(d.getDate()-7);
     else if (dashboardTimePeriod === "1m") d.setMonth(d.getMonth()-1);
     else if (dashboardTimePeriod === "3m") d.setMonth(d.getMonth()-3);
