@@ -1245,15 +1245,20 @@ app.get("/api/stats/dashboard", async (req, res) => {
     try {
         const org      = req.query.org      || "";
         const dateFrom = req.query.dateFrom || "";
-        const cacheKey = `stats:dashboard:${org}:${dateFrom}`;
+        const dateTo   = req.query.dateTo   || "";
+        const cacheKey = `stats:dashboard:${org}:${dateFrom}:${dateTo}`;
         const hit = cacheGet(cacheKey);
         if (hit) return res.json(hit);
 
-        const orgClause  = org      ? `AND t.org = ${sequelize.escape(org)}` : "";
-        // Normalize dateFrom — client may send full ISO string or date-only string
+        const orgClause  = org ? `AND t.org = ${sequelize.escape(org)}` : "";
         const dateFromNorm = dateFrom ? (dateFrom.includes("T") ? dateFrom : dateFrom + "T00:00:00") : "";
-        const dateClause = dateFromNorm ? `AND t.createdAt >= ${sequelize.escape(dateFromNorm)}` : "";
-        const closedDateClause = dateFromNorm ? `AND t.closedAt >= ${sequelize.escape(dateFromNorm)}` : "";
+        const dateToNorm   = dateTo   ? (dateTo.includes("T")   ? dateTo   : dateTo   + "T23:59:59") : "";
+        const dateClause = dateFromNorm
+            ? `AND t.createdAt >= ${sequelize.escape(dateFromNorm)}${dateToNorm ? ` AND t.createdAt <= ${sequelize.escape(dateToNorm)}` : ""}`
+            : "";
+        const closedDateClause = dateFromNorm
+            ? `AND t.closedAt >= ${sequelize.escape(dateFromNorm)}${dateToNorm ? ` AND t.closedAt <= ${sequelize.escape(dateToNorm)}` : ""}`
+            : "";
 
         const [byStatus, priority, category, daily, totals, unassignedRows, reopenedRows, closingUsersRows] = await Promise.all([
             sequelize.query(
@@ -1324,7 +1329,7 @@ app.get("/api/stats/dashboard", async (req, res) => {
                 where: {
                     status: "Closed",
                     ...(org ? { org } : {}),
-                    ...(dateFromNorm ? { closedAt: { [Op.gte]: new Date(dateFromNorm) } } : {}),
+                    ...(dateFromNorm ? { closedAt: { [Op.gte]: new Date(dateFromNorm), ...(dateToNorm ? { [Op.lte]: new Date(dateToNorm) } : {}) } } : {}),
                 },
                 attributes: ["assignees"],
                 raw: true,

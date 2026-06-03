@@ -1730,6 +1730,10 @@ export default function HelpDesk() {
       else if (dashboardTimePeriod === "6m") cutoff.setMonth(cutoff.getMonth() - 6);
       else if (dashboardTimePeriod === "1y") cutoff.setFullYear(cutoff.getFullYear() - 1);
       const _p3 = n => String(n).padStart(2,"0"); params.set("dateFrom", `${cutoff.getFullYear()}-${_p3(cutoff.getMonth()+1)}-${_p3(cutoff.getDate())}`);
+      if (dashboardTimePeriod === "yesterday") {
+        const yEnd = new Date(); yEnd.setDate(yEnd.getDate() - 1);
+        params.set("dateTo", `${yEnd.getFullYear()}-${_p3(yEnd.getMonth()+1)}-${_p3(yEnd.getDate())}`);
+      }
     }
     const qs = params.toString();
     setDashboardStatsLoading(true);
