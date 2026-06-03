@@ -34,6 +34,11 @@ export const TicketsView = React.memo(function TicketsView(props) {
 
   const search = props.ticketSearch || "";
   const setSearch = props.setTicketSearch || (() => {});
+  const ticketDateFrom = props.ticketDateFrom || "";
+  const setTicketDateFrom = props.setTicketDateFrom || (() => {});
+  const ticketDateTo = props.ticketDateTo || "";
+  const setTicketDateTo = props.setTicketDateTo || (() => {});
+  const filterCreatedRef = React.useRef(null);
   const filterStatus = props.filterStatus || [];
   const setFilterStatus = props.setFilterStatus || (() => {});
   const filterAssignment = props.filterAssignment || [];
@@ -187,9 +192,46 @@ export const TicketsView = React.memo(function TicketsView(props) {
                 )}
               </div>
 
+              {/* CREATED DATE */}
+              <div style={{ position: "relative" }} ref={filterCreatedRef}>
+                <button onClick={() => setActiveFilterDD(v => v === "created" ? null : "created")} style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 8, border: `1.5px solid ${(ticketDateFrom || ticketDateTo) ? "#3b82f6" : "#e2e8f0"}`, background: (ticketDateFrom || ticketDateTo) ? "#eff6ff" : "#f8fafc", color: (ticketDateFrom || ticketDateTo) ? "#1d4ed8" : "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", whiteSpace: "nowrap" }}>
+                  Created{ticketDateFrom || ticketDateTo ? " ●" : ""} ▾
+                </button>
+                {activeFilterDD === "created" && (
+                  <div style={{ position: "fixed", top: (filterCreatedRef.current?.getBoundingClientRect().bottom || 0) + 4, left: filterCreatedRef.current?.getBoundingClientRect().left || 0, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 200, minWidth: 240, padding: 12 }}>
+                    {/* Quick options */}
+                    {[
+                      { label: "📅 Today", action: () => { const d = new Date(); const pad = n => String(n).padStart(2,"0"); const s = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; setTicketDateFrom(s); setTicketDateTo(s); setActiveFilterDD(null); } },
+                      { label: "📅 Yesterday", action: () => { const d = new Date(); d.setDate(d.getDate()-1); const pad = n => String(n).padStart(2,"0"); const s = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; setTicketDateFrom(s); setTicketDateTo(s); setActiveFilterDD(null); } },
+                    ].map(opt => (
+                      <div key={opt.label} onClick={opt.action} style={{ padding: "7px 8px", fontSize: 13, cursor: "pointer", borderRadius: 6, color: "#374151", marginBottom: 2 }}
+                        onMouseEnter={e => e.currentTarget.style.background="#f1f5f9"}
+                        onMouseLeave={e => e.currentTarget.style.background="transparent"}>
+                        {opt.label}
+                      </div>
+                    ))}
+                    {/* Custom range */}
+                    <div style={{ borderTop: "1px solid #f1f5f9", marginTop: 6, paddingTop: 10 }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", marginBottom: 6 }}>Custom Range</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <div>
+                          <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 3 }}>From</div>
+                          <input type="date" value={ticketDateFrom} onChange={e => setTicketDateFrom(e.target.value)} style={{ width: "100%", padding: "5px 8px", border: "1.5px solid #e2e8f0", borderRadius: 6, fontSize: 12, fontFamily: "'DM Sans',sans-serif", outline: "none", boxSizing: "border-box" }} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 3 }}>To</div>
+                          <input type="date" value={ticketDateTo} onChange={e => setTicketDateTo(e.target.value)} style={{ width: "100%", padding: "5px 8px", border: "1.5px solid #e2e8f0", borderRadius: 6, fontSize: 12, fontFamily: "'DM Sans',sans-serif", outline: "none", boxSizing: "border-box" }} />
+                        </div>
+                      </div>
+                    </div>
+                    {(ticketDateFrom || ticketDateTo) && <div onClick={() => { setTicketDateFrom(""); setTicketDateTo(""); setActiveFilterDD(null); }} style={{ borderTop: "1px solid #f1f5f9", marginTop: 8, paddingTop: 8, color: "#ef4444", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>✕ Clear</div>}
+                  </div>
+                )}
+              </div>
+
               {/* Clear all if any active */}
-              {(filterStatus.length > 0 || filterAssignment.length > 0 || filterAssignee.length > 0 || filterCategory || priorityF !== "All" || search) && (
-                <span onClick={() => { setFilterStatus([]); setFilterAssignment([]); setFilterAssignee([]); setFilterAssigneeSearch(""); setFilterCategory(""); setPriorityF("All"); setSearch(""); setActiveFilterDD(null); }} style={{ padding: "5px 8px", fontSize: 11, color: "#ef4444", cursor: "pointer", fontWeight: 600, borderRadius: 6, border: "1px solid #fecaca", background: "#fff1f2" }}>✕ Clear all</span>
+              {(filterStatus.length > 0 || filterAssignment.length > 0 || filterAssignee.length > 0 || filterCategory || priorityF !== "All" || search || ticketDateFrom || ticketDateTo) && (
+                <span onClick={() => { setFilterStatus([]); setFilterAssignment([]); setFilterAssignee([]); setFilterAssigneeSearch(""); setFilterCategory(""); setPriorityF("All"); setSearch(""); setTicketDateFrom(""); setTicketDateTo(""); setActiveFilterDD(null); }} style={{ padding: "5px 8px", fontSize: 11, color: "#ef4444", cursor: "pointer", fontWeight: 600, borderRadius: 6, border: "1px solid #fecaca", background: "#fff1f2" }}>✕ Clear all</span>
               )}
               <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
                 <div style={{ position: "relative" }}>

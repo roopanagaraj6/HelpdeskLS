@@ -222,7 +222,7 @@ export default function HelpDesk() {
   });
 
   const mainContentRef = useRef(null);
-  const switchView = (v) => { setView(v); setSearch(""); setStatusF("All"); setPriorityF("All"); setTicketDateFrom(""); setFilterStatus([]); setFilterAssignment([]); setFilterAssignee(""); setFilterCategory(""); setDeptFilter("all"); setCategoryFilter("all"); setOrgFilterSearch(""); setProjSearch(""); setProjStatusF("All"); setProjPriorityF("All"); setProjFilterStatus([]); setProjFilterAssignment([]); setProjFilterAssignee(""); setProjFilterCategory(""); setProjFilterPriority("All"); setVisibleTicketCols(new Set(ALL_TICKET_COLS.filter(c => c !== "reportedBy"))); setVisibleProjCols(new Set(ALL_PROJ_COLS.filter(c => c !== "progress"))); setSettingsTab(currentUser?.role === "Agent" ? "profile" : "organisations"); setReportBuilderOpen(false); setTicketSort({}); setProjSort({}); setTimeout(() => mainContentRef.current?.scrollTo(0, 0), 0); };
+  const switchView = (v) => { setView(v); setSearch(""); setStatusF("All"); setPriorityF("All"); setTicketDateFrom(""); setTicketDateTo(""); setFilterStatus([]); setFilterAssignment([]); setFilterAssignee(""); setFilterCategory(""); setDeptFilter("all"); setCategoryFilter("all"); setOrgFilterSearch(""); setProjSearch(""); setProjStatusF("All"); setProjPriorityF("All"); setProjFilterStatus([]); setProjFilterAssignment([]); setProjFilterAssignee(""); setProjFilterCategory(""); setProjFilterPriority("All"); setVisibleTicketCols(new Set(ALL_TICKET_COLS.filter(c => c !== "reportedBy"))); setVisibleProjCols(new Set(ALL_PROJ_COLS.filter(c => c !== "progress"))); setSettingsTab(currentUser?.role === "Agent" ? "profile" : "organisations"); setReportBuilderOpen(false); setTicketSort({}); setProjSort({}); setTimeout(() => mainContentRef.current?.scrollTo(0, 0), 0); };
   const [settingsTab, setSettingsTab] = useState("organisations");
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [filterStatus, setFilterStatus] = useState([]);       // "open","closed","pastdue"
@@ -415,10 +415,11 @@ export default function HelpDesk() {
 
   const TICKETS_PER_PAGE = 25;
   const [ticketDateFrom, setTicketDateFrom] = useState("");
+  const [ticketDateTo, setTicketDateTo] = useState("");
+  const [ticketsLoading, setTicketsLoading] = useState(false);
   useEffect(() => {
     setTicketPage(1);
-  }, [search, statusF, priorityF, tvFilter, view, orgFilter, filterStatus, filterAssignment, filterAssignee, filterCategory, ticketSort, ticketDateFrom]);
-  const [ticketsLoading, setTicketsLoading] = useState(false);
+  }, [search, statusF, priorityF, tvFilter, view, orgFilter, filterStatus, filterAssignment, filterAssignee, filterCategory, ticketSort, ticketDateFrom, ticketDateTo]);
   useEffect(() => {
     const _isAgentRole = currentUser?.role === "Agent" || currentUser?.role === "Viewer";
     if (view !== "tickets" && !(_isAgentRole && view === "dashboard")) return;
@@ -462,6 +463,7 @@ export default function HelpDesk() {
         const _p2 = n => String(n).padStart(2,"0"); params.set("dateFrom", `${cutoff.getFullYear()}-${_p2(cutoff.getMonth()+1)}-${_p2(cutoff.getDate())}`);
       } else if (ticketDateFrom && tvFilter !== "reopened") {
         params.set("dateFrom", ticketDateFrom);
+        if (ticketDateTo) params.set("dateTo", ticketDateTo);
       }
       if (filterCategory) params.set("category", filterCategory);
     }
@@ -483,7 +485,7 @@ export default function HelpDesk() {
         setTicketsLoading(false);
       })
       .catch(() => { setTicketsLoading(false); });
-  }, [ticketPage, view, debouncedSearch, priorityF, orgFilter, filterStatus, filterCategory, filterAssignee, filterAssignment, tvFilter, ticketSort, dashboardTimePeriod, ticketDateFrom, currentUser]);
+  }, [ticketPage, view, debouncedSearch, priorityF, orgFilter, filterStatus, filterCategory, filterAssignee, filterAssignment, tvFilter, ticketSort, dashboardTimePeriod, ticketDateFrom, ticketDateTo, currentUser]);
 
   // ── Project filters ──
   const [projSearch, setProjSearch] = useState("");
@@ -3233,6 +3235,8 @@ export default function HelpDesk() {
               filterCategory={filterCategory} setFilterCategory={setFilterCategory}
               priorityF={priorityF} setPriorityF={setPriorityF}
               ticketSearch={search} setTicketSearch={setSearch}
+              ticketDateFrom={ticketDateFrom} setTicketDateFrom={setTicketDateFrom}
+              ticketDateTo={ticketDateTo} setTicketDateTo={setTicketDateTo}
               ticketFilters={{filterStatus, filterAssignment, statusF, priorityF}} setTicketFilters={() => {}}
               ticketPage={ticketPage} setTicketPage={setTicketPage}
               selectedIds={selectedIds} setSelectedIds={setSelectedIds}
