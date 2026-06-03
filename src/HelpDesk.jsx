@@ -1392,46 +1392,28 @@ export default function HelpDesk() {
     const now = new Date();
     const cutoffDate = new Date();
 
-    switch (dashboardTimePeriod) {
-      case "1d":
-        cutoffDate.setHours(0, 0, 0, 0);
-        break;
-      case "yesterday":
-        cutoffDate.setDate(cutoffDate.getDate() - 1);
-        cutoffDate.setHours(0, 0, 0, 0);
-        cutoffDate.setMilliseconds(cutoffDate.setHours(0, 0, 0, 0));
-        break;
-      case "7d":
-        cutoffDate.setDate(cutoffDate.getDate() - 7);
-        break;
-      case "1m":
-        cutoffDate.setMonth(cutoffDate.getMonth() - 1);
-        break;
-      case "3m":
-        cutoffDate.setMonth(cutoffDate.getMonth() - 3);
-        break;
-      case "6m":
-        cutoffDate.setMonth(cutoffDate.getMonth() - 6);
-        break;
-      case "1y":
-        cutoffDate.setFullYear(cutoffDate.getFullYear() - 1);
-        break;
-      case "all":
-      default:
-        return data;  // No time filtering
+    if (dashboardTimePeriod === "yesterday") {
+      const yStart = new Date(); yStart.setDate(yStart.getDate() - 1); yStart.setHours(0, 0, 0, 0);
+      const yEnd = new Date(); yEnd.setHours(0, 0, 0, 0);
+      return data.filter(t => {
+        const dateField = t.status === "Closed"
+          ? (t.closedAt ? new Date(t.closedAt) : (() => { const e = (t.timeline||[]).slice().reverse().find(e=>e.action?.includes("Status changed to Closed")); return e?.date ? new Date(e.date) : (t.created instanceof Date ? t.created : new Date(t.created)); })())
+          : (t.created instanceof Date ? t.created : new Date(t.created));
+        return dateField >= yStart && dateField < yEnd;
+      });
     }
 
-    if (dashboardTimePeriod === "yesterday") {
-  const yStart = new Date(); yStart.setDate(yStart.getDate() - 1); yStart.setHours(0, 0, 0, 0);
-  const yEnd = new Date(); yEnd.setHours(0, 0, 0, 0);
-  return data.filter(t => {
-    const dateField = t.status === "Closed"
-      ? (t.closedAt ? new Date(t.closedAt) : (() => { const e = (t.timeline||[]).slice().reverse().find(e=>e.action?.includes("Status changed to Closed")); return e?.date ? new Date(e.date) : (t.created instanceof Date ? t.created : new Date(t.created)); })())
-      : (t.created instanceof Date ? t.created : new Date(t.created));
-    return dateField >= yStart && dateField < yEnd;
-  });
-}
-return data.filter(t => {
+    switch (dashboardTimePeriod) {
+      case "1d": cutoffDate.setHours(0, 0, 0, 0); break;
+      case "7d": cutoffDate.setDate(cutoffDate.getDate() - 7); break;
+      case "1m": cutoffDate.setMonth(cutoffDate.getMonth() - 1); break;
+      case "3m": cutoffDate.setMonth(cutoffDate.getMonth() - 3); break;
+      case "6m": cutoffDate.setMonth(cutoffDate.getMonth() - 6); break;
+      case "1y": cutoffDate.setFullYear(cutoffDate.getFullYear() - 1); break;
+      case "all": default: return data;
+    }
+
+    return data.filter(t => {
   const dateField = t.status === "Closed"
     ? (t.closedAt ? new Date(t.closedAt) : (() => { const e = (t.timeline||[]).slice().reverse().find(e=>e.action?.includes("Status changed to Closed")); return e?.date ? new Date(e.date) : (t.created instanceof Date ? t.created : new Date(t.created)); })())
     : (t.created instanceof Date ? t.created : new Date(t.created));
