@@ -247,16 +247,18 @@ export const TicketsView = React.memo(function TicketsView(props) {
                 {selectedIds.size > 0 && <span style={{ fontSize: 12, color: "#3b82f6", fontWeight: 600, background: "#eff6ff", padding: "4px 10px", borderRadius: 99 }}>{selectedIds.size} selected</span>}
 
                 {/* ── Bulk Close - ADMIN ONLY, hidden in closed view ── */}
-                {selectedIds.size > 0 && currentUser?.role === "Admin" && tvFilter !== "closed" && (
+                {(() => {
+                  const openSelected = tickets.filter(t => selectedIds.has(t.id) && t.status !== "Closed");
+                  return openSelected.length > 0 && ["Admin", "Manager", "Agent"].includes(currentUser?.role) && tvFilter !== "closed" && (
                   <button onClick={() => {
                     setConfirmModal({
                       show: true,
-                      title: `Close ${selectedIds.size} Ticket(s)?`,
-                      message: `Enter one closing reason — it will be applied to all ${selectedIds.size} selected ticket(s).`,
+                      title: `Close ${openSelected.length} Ticket(s)?`,
+                      message: `Enter one closing reason — it will be applied to all ${openSelected.length} selected open ticket(s).`,
                       fields: [
                         { name: "remark", label: "📝 Closing Reason", type: "textarea", placeholder: "Describe what was done or why these tickets are being closed…", value: "" }
                       ],
-                      confirmLabel: `Close ${selectedIds.size} Ticket(s)`,
+                      confirmLabel: `Close ${openSelected.length} Ticket(s)`,
                       confirmDanger: false,
                       onConfirm: async (data) => {
                         const remark = (data.remark || "").trim();
@@ -265,9 +267,9 @@ export const TicketsView = React.memo(function TicketsView(props) {
                           return;
                         }
                         const nowISO = new Date().toISOString();
-                        const count = selectedIds.size;
+                        const count = openSelected.length;
                         try {
-                          for (const id of selectedIds) {
+                        for (const id of openSelected.map(t => t.id)) {
                             const t = tickets.find(x => x.id === id);
                             if (t) {
                               const newTimelineEvent = { action: "Status changed to Closed", by: currentUser.name, date: nowISO, note: `Remark: ${remark}` };
@@ -286,8 +288,9 @@ export const TicketsView = React.memo(function TicketsView(props) {
                       },
                       onCancel: () => setConfirmModal({ show: false })
                     });
-                  }} style={{ ...bP, padding: "7px 13px", fontSize: 12, background: "#22c55e", color: "#fff" }}>✓ Close {selectedIds.size} Ticket(s)</button>
-                )}
+                  }} style={{ ...bP, padding: "7px 13px", fontSize: 12, background: "#22c55e", color: "#fff" }}>✓ Close {openSelected.length} Ticket(s)</button>
+                  );
+                })()}
 
                 {/* ── Bulk Reopen - shown in closed view when tickets are selected ── */}
                 {selectedIds.size > 0 && tvFilter === "closed" && (
@@ -337,7 +340,7 @@ export const TicketsView = React.memo(function TicketsView(props) {
 
             <div style={{ overflowX: "auto" }}>
               {/* Select-all-filtered banner — shown when current page is fully selected but more exist */}
-              {currentUser?.role === "Admin" && (() => {
+              {["Admin", "Manager", "Agent"].includes(currentUser?.role) && (() => {
                 const pageIds = currentTickets.map(t => t.id);
                 const allPageSelected = pageIds.length > 0 && pageIds.every(id => selectedIds.has(id));
                 const allFilteredSelected = allSortedTickets.length > 0 && allSortedTickets.every(t => selectedIds.has(t.id));
@@ -364,7 +367,7 @@ export const TicketsView = React.memo(function TicketsView(props) {
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead><tr style={{ background: "#f8fafc" }}>
                   {/* Checkbox column — Admin only: checks/unchecks current page */}
-                  {currentUser?.role === "Admin" && (() => {
+                  {["Admin", "Manager", "Agent"].includes(currentUser?.role) && (() => {
                     const pageIds = currentTickets.map(t => t.id);
                     const allPageSelected = pageIds.length > 0 && pageIds.every(id => selectedIds.has(id));
                     const somePageSelected = pageIds.some(id => selectedIds.has(id));
@@ -402,7 +405,7 @@ export const TicketsView = React.memo(function TicketsView(props) {
                 </tr></thead>
                 <tbody>{isLoading ? Array.from({ length: 10 }).map((_, i) => (
                   <tr key={`skel-${i}`} style={{ background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
-                    {currentUser?.role === "Admin" && <td style={tdStyle}><div style={{ ...skeletonStyle, width: 16, height: 16, borderRadius: 3 }} /></td>}
+                    {["Admin", "Manager", "Agent"].includes(currentUser?.role) && <td style={tdStyle}><div style={{ ...skeletonStyle, width: 16, height: 16, borderRadius: 3 }} /></td>}
                     {[...visibleTicketCols].map(k => (
                       <td key={k} style={tdStyle}>
                         <div style={{ ...skeletonStyle, width: k === "summary" ? "80%" : k === "id" ? 70 : k === "assignees" ? 90 : k === "status" ? 60 : k === "created" ? 80 : "60%", animationDelay: `${i * 60}ms` }} />
@@ -413,7 +416,7 @@ export const TicketsView = React.memo(function TicketsView(props) {
                 )) : currentTickets.map((t, rowIdx) => (
                   <tr key={t.id} className="rh tkt-row" style={{ cursor: "pointer", background: selectedIds.has(t.id) ? "#eff6ff" : "#fff", animationDelay: `${Math.min(rowIdx * 20, 200)}ms` }}>
                     {/* ✅ Checkboxes only for Admin */}
-                    {currentUser?.role === "Admin" && (
+                    {["Admin", "Manager", "Agent"].includes(currentUser?.role) && (
                       <td style={tdStyle} onClick={e => e.stopPropagation()}><input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleSel(t.id)} style={{ cursor: "pointer" }} /></td>
                     )}
                     {visibleTicketCols.has("id") && <td style={tdStyle} onClick={() => setSelTicket(t)}><span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11.5, color: "#3b82f6", fontWeight: 500 }}>{t.id}</span>{t.category === "Webcast" && <span style={{ marginLeft: 5, fontSize: 10, background: "#fff7ed", color: "#f97316", padding: "1px 5px", borderRadius: 4, fontWeight: 600 }}>📡</span>}</td>}
