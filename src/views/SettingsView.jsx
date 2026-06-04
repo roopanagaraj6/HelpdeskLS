@@ -12,7 +12,7 @@ import { BASE_URL, ORGS_API, CATEGORIES_API, LOCATIONS_API, VENDORS_API } from "
 
 // --- Scheduled Tasks Tab Component ---
 const SCHED_DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-const FREQ_LABELS = { daily: "Daily", weekly: "Weekly", biweekly: "Bi-Weekly", monthly: "Monthly" };
+const FREQ_LABELS = { daily: "Daily", weekly: "Weekly", biweekly: "Bi-Weekly", monthly: "Monthly", quarterly: "Quarterly", halfyearly: "Half-Yearly", yearly: "Yearly" };
 
 function ScheduledTasksTab({ currentUser, orgs, categories, users, locations, departments, setCustomAlert }) {
   const [tasks, setTasks] = React.useState([]);
@@ -130,6 +130,9 @@ function ScheduledTasksTab({ currentUser, orgs, categories, users, locations, de
                     {t.frequency === "weekly" && " every " + (SCHED_DAYS[t.dayOfWeek] || "")}
                     {t.frequency === "biweekly" && " twice/week on " + (t.daysOfWeek || []).map(d => SCHED_DAYS[d]).join(" & ")}
                     {t.frequency === "monthly" && " on day " + t.dayOfMonth + " of month"}
+                    {t.frequency === "quarterly" && " on day " + t.dayOfMonth + " of quarter"}
+                    {t.frequency === "halfyearly" && " on day " + t.dayOfMonth + " of half-year"}
+                    {t.frequency === "yearly" && " on day " + t.dayOfMonth + " of year"}
                     {t.frequency === "daily" && " daily"}
                   </span>
                   {t.nextRunAt && <span>Next: {new Date(t.nextRunAt).toLocaleString()}</span>}
@@ -170,6 +173,9 @@ function ScheduledTasksTab({ currentUser, orgs, categories, users, locations, de
                     <option value="weekly">Weekly</option>
                     <option value="biweekly">Bi-Weekly</option>
                     <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="halfyearly">Half-Yearly</option>
+                    <option value="yearly">Yearly</option>
                   </select>
                 </FF>
                 <FF label="Time of Day">
@@ -205,7 +211,7 @@ function ScheduledTasksTab({ currentUser, orgs, categories, users, locations, de
                     </div>
                   </FF>
                 )}
-                {form.frequency === "monthly" && (
+                {(form.frequency === "monthly" || form.frequency === "quarterly" || form.frequency === "halfyearly" || form.frequency === "yearly") && (
                   <FF label="Day of Month">
                     <select style={sS} value={form.dayOfMonth} onChange={e => setForm(f => ({ ...f, dayOfMonth: parseInt(e.target.value) }))}>
                       {Array.from({ length: 28 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}

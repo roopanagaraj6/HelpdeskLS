@@ -277,7 +277,7 @@ const ScheduledTask = sequelize.define("ScheduledTask", {
     assignees:   { type: DataTypes.JSON, defaultValue: [] },
     location:    { type: DataTypes.STRING, defaultValue: "" },
     reportedBy:  { type: DataTypes.STRING, defaultValue: "" },
-    frequency:   { type: DataTypes.ENUM("daily","weekly","biweekly","monthly"), defaultValue: "weekly" },
+    frequency: { type: DataTypes.ENUM("daily","weekly","biweekly","monthly","quarterly","halfyearly","yearly"), defaultValue: "weekly" },
     dayOfWeek:   { type: DataTypes.INTEGER, defaultValue: 1 },
     dayOfMonth:  { type: DataTypes.INTEGER, defaultValue: 1 },
     timeOfDay:   { type: DataTypes.STRING, defaultValue: "09:00" },
@@ -1990,6 +1990,14 @@ sequelize.sync({ alter: true }).then(async () => {
         console.error("⚠️ Status migration warning:", migErr.message);
     }
 
+    // Data Migration: Extend ScheduledTasks frequency ENUM
+    try {
+        await sequelize.query(
+            `ALTER TABLE ScheduledTasks MODIFY COLUMN frequency ENUM('daily','weekly','biweekly','monthly','quarterly','halfyearly','yearly') NOT NULL DEFAULT 'weekly'`
+        );
+        console.log("✅ ScheduledTasks frequency ENUM migrated");
+    } catch (e) { console.warn("⚠️ frequency ENUM migration:", e.message); }
+    
     // Data Migration: Backfill orgName = "General" for old departments missing it
     try {
         const [deptCount] = await sequelize.query(
@@ -2057,6 +2065,18 @@ function calcNextRun(task, fromDate) {
         const dom = task.dayOfMonth != null ? task.dayOfMonth : 1;
         next.setDate(dom); next.setHours(hh, mm, 0, 0);
         if (next <= now) { next.setMonth(next.getMonth() + 1); next.setDate(dom); }
+    } else if (task.frequency === "quarterly") {
+        const dom = task.dayOfMonth != null ? task.dayOfMonth : 1;
+        next.setDate(dom); next.setHours(hh, mm, 0, 0);
+        if (next <= now) { next.setMonth(next.getMonth() + 3); next.setDate(dom); }
+    } else if (task.frequency === "halfyearly") {
+        const dom = task.dayOfMonth != null ? task.dayOfMonth : 1;
+        next.setDate(dom); next.setHours(hh, mm, 0, 0);
+        if (next <= now) { next.setMonth(next.getMonth() + 6); next.setDate(dom); }
+    } else if (task.frequency === "yearly") {
+        const dom = task.dayOfMonth != null ? task.dayOfMonth : 1;
+        next.setDate(dom); next.setHours(hh, mm, 0, 0);
+        if (next <= now) { next.setFullYear(next.getFullYear() + 1); next.setDate(dom); }
     }
     return istToUtc(next);
 }
