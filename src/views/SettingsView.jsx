@@ -277,8 +277,8 @@ function ScheduledTasksTab({ currentUser, orgs, categories, users, locations, de
                     <div style={{ position: "absolute", top: "calc(100% + 3px)", left: 0, right: 0, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, zIndex: 300, boxShadow: "0 4px 12px rgba(0,0,0,0.15)", maxHeight: 200, overflowY: "auto" }}>
                       {(users || []).filter(u => !assigneeSearch || u.name.toLowerCase().includes(assigneeSearch.toLowerCase())).map(u => (
                         <div key={u.id} onMouseDown={e => { e.preventDefault(); toggleAssignee(u); }}
-                          style={{ padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, background: form.assignees.some(a => a.id === u.id) ? "#eff6ff" : "transparent", borderBottom: "1px solid #f1f5f9" }}>
-                          <span style={{ fontSize: 13, fontWeight: form.assignees.some(a => a.id === u.id) ? 700 : 400, color: form.assignees.some(a => a.id === u.id) ? "#3b82f6" : "#1e293b" }}>{u.name}</span>
+                          style={{ padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, background: form.assignees.some(a => a.id === u.id) ? "#eff6ff" : "transparent", borderBottom: "1px solid #f1f5f9", opacity: u.active ? 1 : 0.6 }}>
+                          <span style={{ fontSize: 13, fontWeight: form.assignees.some(a => a.id === u.id) ? 700 : 400, color: form.assignees.some(a => a.id === u.id) ? "#3b82f6" : "#1e293b" }}>{u.name}{!u.active && <span style={{ fontSize: 10, fontWeight: 600, color: "#94a3b8", background: "#f1f5f9", borderRadius: 4, padding: "1px 5px", marginLeft: 4 }}>Inactive</span>}</span>
                           <span style={{ fontSize: 11, color: "#94a3b8", marginLeft: "auto" }}>{u.role}</span>
                           {form.assignees.some(a => a.id === u.id) && <span style={{ color: "#3b82f6" }}>&#10003;</span>}
                         </div>
