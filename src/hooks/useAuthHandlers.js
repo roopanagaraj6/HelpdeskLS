@@ -80,7 +80,7 @@ export function useAuthHandlers(ctx) {
 
       // Off Duty or Idle: go straight to logout (no dialog needed)
       if (currentStatus === "Off Duty" || currentStatus === "Idle") {
-        await axios.put(`${USERS_API}/${currentUser.id}`, { ...currentUser, status: "Off Duty", idleAt: null, _isSystemUpdate: true });
+        await axios.put(`${USERS_API}/${currentUser.id}`, { status: "Off Duty", idleAt: null, _isSystemUpdate: true });
         clearSession();
         setCurrentUser(null);
         return;
@@ -170,11 +170,11 @@ export function useAuthHandlers(ctx) {
             // Build update object
             const isGoingForTicket = data.logoutReason === "Going for ticket";
             const up = {
-              ...currentUser,
               status: isGoingForTicket ? "On Ticket" : "Off Duty",
               currentLocation: data.location ? data.location : currentUser.currentLocation,
               currentTicketId: isGoingForTicket ? (data.ticketId || data.location || "field") : null,
-              lunchStatus: false
+              lunchStatus: false,
+              _isSystemUpdate: true
             };
 
             // ✅ Only add logoutReason if not on lunch

@@ -2851,7 +2851,7 @@ export default function HelpDesk() {
                   onClick={async () => {
                     try {
                       const isDeactivating = userEditModal.user.active;
-                      const updated = { ...userEditModal.user, active: !userEditModal.user.active, status: !userEditModal.user.active ? userEditModal.user.status : "Logged-Out" };
+                      const updated = { ...userEditModal.user, active: !userEditModal.user.active, status: !userEditModal.user.active ? userEditModal.user.status : "Logged-Out", _isSystemUpdate: true };
                       await axios.put(`${USERS_API}/${userEditModal.user.id}`, updated);
                       setUsers(users.map(x => x.id === userEditModal.user.id ? updated : x));
 
@@ -2939,7 +2939,7 @@ export default function HelpDesk() {
                         message: `Change ${userEditModal.user.name}'s role to ${userEditModal.newRole}? They will be logged out and must log in again.`,
                         onConfirm: async () => {
                           try {
-                            const updated = { ...userEditModal.user, role: userEditModal.newRole };
+                            const updated = { ...userEditModal.user, role: userEditModal.newRole, _isSystemUpdate: true };
                             await axios.put(`${USERS_API}/${userEditModal.user.id}`, updated);
                             setUsers(users.map(u => u.id === userEditModal.user.id ? updated : u));
                             if (userEditModal.user.id === currentUser.id) {
