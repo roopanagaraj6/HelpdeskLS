@@ -168,7 +168,7 @@ export function DashboardView(props) {
                                         onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? "#fff" : "#fafafa"}>
                                         <td style={{ padding: "8px 12px", fontWeight: 600, color: "#1e293b" }}>{r.label}</td>
                                         <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: "#3b82f6" }}>{r.value}</td>
-                                        <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: "#f59e0b" }}>{r.open || 0}</td>
+                                        <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: "#a855f7" }}>{r.open || 0}</td>
                                         <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: "#22c55e" }}>{r.closed || 0}</td>
                                       </tr>
                                     ))}
