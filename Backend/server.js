@@ -19,6 +19,7 @@ const CACHE_TTL = {
   stats:     60 * 1000,      // 60s — dashboard/agent stats
   static:    5 * 60 * 1000,  // 5m  — orgs, categories, users, depts, locations, vendors
   alldata:   2 * 60 * 1000,  // 2m  — /api/all-data
+  report:    2 * 60 * 1000,  // 2m  — /api/report
 };
 
 function cacheGet(key) {
@@ -304,7 +305,7 @@ const fmt = (doc) => {
 app.use((req, res, next) => {
   if (!["POST","PUT","DELETE","PATCH"].includes(req.method)) return next();
   const url = req.path;
-  if (url.includes("/tickets"))   cacheDel("paginated:", "counts", "stats:", "static:categories");
+  if (url.includes("/tickets"))   cacheDel("paginated:", "counts", "stats:", "static:categories", "report:");
   if (url.includes("/orgs"))      cacheDel("static:orgs", "alldata");
   if (url.includes("/categories"))cacheDel("static:categories", "alldata", "paginated:", "stats:");
   if (url.includes("/departments"))cacheDel("static:departments", "alldata");
