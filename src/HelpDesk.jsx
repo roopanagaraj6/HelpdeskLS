@@ -452,7 +452,7 @@ export default function HelpDesk() {
     // Apply dashboard time period as dateFrom — takes priority over ticketDateFrom
     // Skip for dashboard fetch (agent/viewer): needs all tickets for correct stats
     if (!_isDashboardFetch) {
-      if (dashboardTimePeriod && dashboardTimePeriod !== "all" && tvFilter !== "reopened" && ticketDateFrom) {
+      if (dashboardTimePeriod && dashboardTimePeriod !== "all" && tvFilter !== "reopened") {
         const cutoff = new Date();
         if (dashboardTimePeriod === "1d") cutoff.setHours(0, 0, 0, 0);
         else if (dashboardTimePeriod === "7d") cutoff.setDate(cutoff.getDate() - 7);
@@ -2216,12 +2216,44 @@ export default function HelpDesk() {
                 const cols = [...ticketExportCols];
                 const colLabels = { id:"ID", created:"Created", summary:"Summary", org:"Organization", department:"Department", reportedBy:"Reported By", assignees:"Assignees", priority:"Priority", category:"Category", status:"Status" };
                 setShowTicketColExport(false);
-                setCustomAlert({ show: true, message: "⏳ Fetching all tickets for export...", type: "success" });
+                setCustomAlert({ show: true, message: "⏳ Fetching filtered tickets for export...", type: "success" });
                 try {
                   const isAgentRole = currentUser?.role === "Agent" || currentUser?.role === "Viewer";
-                  const reportUrl = isAgentRole ? `${BASE_URL}/tickets/report?assignee=${encodeURIComponent(currentUser.name)}` : `${BASE_URL}/tickets/report`;
-                  const res = await axios.get(reportUrl);
-                  const allTickets = res.data.tickets || [];
+                  const exportParams = new URLSearchParams({ limit: 999999, page: 1 });
+                  if (debouncedSearch) exportParams.set("search", debouncedSearch);
+                  if (priorityF !== "All") exportParams.set("priority", priorityF);
+                  if (orgFilter !== "all") exportParams.set("org", orgFilter);
+                  if (tvFilter === "open")            { exportParams.set("status", "Open"); }
+                  else if (tvFilter === "closed")     { exportParams.set("status", "Closed"); }
+                  else if (tvFilter === "pastdue")    { exportParams.set("status", "Open"); exportParams.set("pastdue", "1"); }
+                  else if (tvFilter === "reopened")   { exportParams.set("reopened", "1"); }
+                  else if (tvFilter === "unassigned") { exportParams.set("unassigned", "1"); exportParams.set("status", "Open"); }
+                  else {
+                    if (filterStatus.length === 1 && filterStatus[0] === "open")    exportParams.set("status", "Open");
+                    if (filterStatus.length === 1 && filterStatus[0] === "closed")  exportParams.set("status", "Closed");
+                    if (filterStatus.length === 1 && filterStatus[0] === "pastdue") { exportParams.set("status", "Open"); exportParams.set("pastdue", "1"); }
+                    if (filterAssignment.length === 1 && filterAssignment[0] === "unassigned") exportParams.set("unassigned", "1");
+                    if (filterAssignment.length === 1 && filterAssignment[0] === "vendor")     exportParams.set("hasVendor", "1");
+                  }
+                  if (dashboardTimePeriod && dashboardTimePeriod !== "all" && tvFilter !== "reopened") {
+                    const _ec = new Date();
+                    if (dashboardTimePeriod === "1d") _ec.setHours(0,0,0,0);
+                    else if (dashboardTimePeriod === "7d") _ec.setDate(_ec.getDate()-7);
+                    else if (dashboardTimePeriod === "1m") _ec.setMonth(_ec.getMonth()-1);
+                    else if (dashboardTimePeriod === "3m") _ec.setMonth(_ec.getMonth()-3);
+                    else if (dashboardTimePeriod === "6m") _ec.setMonth(_ec.getMonth()-6);
+                    else if (dashboardTimePeriod === "1y") _ec.setFullYear(_ec.getFullYear()-1);
+                    const _p2 = n => String(n).padStart(2,"0");
+                    exportParams.set("dateFrom", `${_ec.getFullYear()}-${_p2(_ec.getMonth()+1)}-${_p2(_ec.getDate())}`);
+                  } else if (ticketDateFrom && tvFilter !== "reopened") {
+                    exportParams.set("dateFrom", ticketDateFrom);
+                    if (ticketDateTo) exportParams.set("dateTo", ticketDateTo);
+                  }
+                  if (filterCategory) exportParams.set("category", filterCategory);
+                  if (isAgentRole && filterAssignee.length === 0) exportParams.set("assignee", currentUser.name);
+                  else if (filterAssignee.length === 1) exportParams.set("assignee", filterAssignee[0]);
+                  const res = await axios.get(`${BASE_URL}/tickets/paginated?${exportParams}`);
+                  const allTickets = (res.data.tickets || []).map(t => ({ ...t, assignees: Array.isArray(t.assignees) ? t.assignees : (typeof t.assignees === "string" ? JSON.parse(t.assignees||"[]") : []) }));
                   if (ticketExportMode === "csv") {
                     const headers = cols.map(c => colLabels[c]||c);
                     const rows = allTickets.map(t => cols.map(c => {
