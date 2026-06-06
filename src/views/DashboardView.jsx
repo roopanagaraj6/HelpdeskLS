@@ -46,6 +46,8 @@ export function DashboardView(props) {
   categoryDistFull, dashboardClosingUsersFull,
   catBreakdownExpanded, setCatBreakdownExpanded,
   closuresByPersonExpanded, setClosuresByPersonExpanded,
+  assignmentsByPersonExpanded, setAssignmentsByPersonExpanded,
+  dashboardAssignedUsersFull,
   setSelTicket, switchView,
   setTvFilter, setFilterStatus, setFilterAssignment,
   setPriorityF, setStatusF, setTicketDateFrom, dashboardTimePeriod,
@@ -135,6 +137,47 @@ export function DashboardView(props) {
                       </div>
                       {dashboardStatsLoading ? <div style={{ ...shimmerStyle, height: 200, borderRadius: 8 }} /> : <HorizontalBarChart data={dashboardClosingUsersFull} maxItems={closuresByPersonExpanded ? undefined : 10} />
 }
+                    </div>
+                  </div>
+
+                  {/* Row 3: Assignments by Person (open/closed stacked) */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12, marginBottom: 12 }}>
+                    <div style={{ background: "#fff", borderRadius: 12, padding: 18, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Assignments by Person</div>
+                        <button onClick={() => setAssignmentsByPersonExpanded(v => !v)} style={{ fontSize: 11, fontWeight: 600, color: "#3b82f6", background: "none", border: "none", cursor: "pointer", padding: 0 }}>{assignmentsByPersonExpanded ? "Show Less ↑" : "View All ↓"}</button>
+                      </div>
+                      {dashboardStatsLoading
+                        ? <div style={{ ...shimmerStyle, height: 200, borderRadius: 8 }} />
+                        : (() => {
+                            const rows = assignmentsByPersonExpanded ? (dashboardAssignedUsersFull || []) : (dashboardAssignedUsersFull || []).slice(0, 10);
+                            return (
+                              <div style={{ overflowX: "auto" }}>
+                                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                                  <thead>
+                                    <tr style={{ background: "#f8fafc" }}>
+                                      {["Person", "Assigned", "Open", "Closed"].map(h => (
+                                        <th key={h} style={{ padding: "8px 12px", textAlign: h === "Person" ? "left" : "right", fontWeight: 700, color: "#475569", borderBottom: "2px solid #e2e8f0", whiteSpace: "nowrap" }}>{h}</th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {rows.map((r, i) => (
+                                      <tr key={i} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}
+                                        onMouseEnter={e => e.currentTarget.style.background = "#f0f9ff"}
+                                        onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? "#fff" : "#fafafa"}>
+                                        <td style={{ padding: "8px 12px", fontWeight: 600, color: "#1e293b" }}>{r.label}</td>
+                                        <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: "#3b82f6" }}>{r.value}</td>
+                                        <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: "#f59e0b" }}>{r.open || 0}</td>
+                                        <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: "#22c55e" }}>{r.closed || 0}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            );
+                          })()
+                      }
                     </div>
                   </div>
 

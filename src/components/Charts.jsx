@@ -72,6 +72,49 @@ export const HorizontalBarChart = ({ data, maxItems }) => {
   );
 };
 
+// ─── STACKED HORIZONTAL BAR CHART (open/closed per assignee) ─────────────────
+export const StackedHorizontalBarChart = ({ data, maxItems }) => {
+  const [hov, setHov] = useState(null);
+  const visible = maxItems ? data.slice(0, maxItems) : data;
+  const max = Math.max(...visible.map(d => (d.open || 0) + (d.closed || 0)), 1);
+  const totalOpen = data.reduce((s, d) => s + (d.open || 0), 0);
+  const totalClosed = data.reduce((s, d) => s + (d.closed || 0), 0);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 7, padding: "4px 2px" }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
+        <div style={{ fontSize: 18, fontWeight: 900, color: "#1e293b", lineHeight: 1.2 }}>{totalOpen + totalClosed} <span style={{ fontSize: 10, fontWeight: 500, color: "#94a3b8" }}>total</span></div>
+        <div style={{ display: "flex", gap: 10, fontSize: 11 }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: "#f59e0b", display: "inline-block" }} />Open {totalOpen}</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: "#22c55e", display: "inline-block" }} />Closed {totalClosed}</span>
+        </div>
+      </div>
+      {visible.map((d, i) => {
+        const total = (d.open || 0) + (d.closed || 0);
+        const openPct  = Math.max(((d.open   || 0) / max) * 100, (d.open   || 0) > 0 ? 1 : 0);
+        const closedPct = Math.max(((d.closed || 0) / max) * 100, (d.closed || 0) > 0 ? 1 : 0);
+        const isHov = hov === i;
+        return (
+          <div key={i} onMouseEnter={() => setHov(i)} onMouseLeave={() => setHov(null)}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+              <span style={{ fontSize: 11, fontWeight: isHov ? 700 : 500, color: isHov ? "#1e293b" : "#374151", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "55%" }}>{d.label}</span>
+              <span style={{ fontSize: 11, display: "flex", gap: 5, alignItems: "center" }}>
+                <span style={{ color: "#f59e0b", fontWeight: 700 }}>{d.open || 0}</span>
+                <span style={{ color: "#cbd5e1" }}>·</span>
+                <span style={{ color: "#22c55e", fontWeight: 700 }}>{d.closed || 0}</span>
+                <span style={{ color: "#94a3b8" }}>= {total}</span>
+              </span>
+            </div>
+            <div style={{ height: 8, background: "#f1f5f9", borderRadius: 99, overflow: "hidden", display: "flex" }}>
+              <div style={{ width: `${openPct}%`, height: "100%", background: "#f59e0b", transition: "width 0.4s ease", borderRadius: (d.closed || 0) === 0 ? 99 : "99px 0 0 99px", boxShadow: isHov ? "0 0 5px #f59e0b88" : "none" }} />
+              <div style={{ width: `${closedPct}%`, height: "100%", background: "#22c55e", transition: "width 0.4s ease", borderRadius: (d.open || 0) === 0 ? 99 : "0 99px 99px 0", boxShadow: isHov ? "0 0 5px #22c55e88" : "none" }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 // ─── PIE / DONUT CHART ────────────────────────────────────────────────────────
 export const PieChart = ({ data, donut = false }) => {
   const [hov, setHov] = useState(null);

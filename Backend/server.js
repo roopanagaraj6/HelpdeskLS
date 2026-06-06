@@ -1261,7 +1261,7 @@ app.get("/api/stats/dashboard", async (req, res) => {
             ? `AND t.closedAt >= ${sequelize.escape(dateFromNorm)}${dateToNorm ? ` AND t.closedAt <= ${sequelize.escape(dateToNorm)}` : ""}`
             : "";
 
-        const [byStatus, priority, category, daily, totals, unassignedRows, reopenedRows, closingUsersRows] = await Promise.all([
+        const [byStatus, priority, category, daily, totals, unassignedRows, reopenedRows, closingUsersRows, assignedUsersRows] = await Promise.all([
             sequelize.query(
                 `SELECT status, COUNT(*) as cnt FROM Tickets t
                  WHERE t.status != 'Bin' ${orgClause} ${dateClause} GROUP BY status`,
@@ -1335,6 +1335,16 @@ app.get("/api/stats/dashboard", async (req, res) => {
                 attributes: ["assignees"],
                 raw: true,
             }),
+            // Assignments by person: all non-Bin tickets filtered by createdAt, split by open/closed
+            Ticket.findAll({
+                where: {
+                    status: { [Op.ne]: "Bin" },
+                    ...(org ? { org } : {}),
+                    ...(dateFromNorm ? { createdAt: { [Op.gte]: new Date(dateFromNorm), ...(dateToNorm ? { [Op.lte]: new Date(dateToNorm) } : {}) } } : {}),
+                },
+                attributes: ["assignees", "status"],
+                raw: true,
+            }),
         ]);
 
         const r = totals[0] || {};
@@ -1346,6 +1356,19 @@ app.get("/api/stats/dashboard", async (req, res) => {
             if (!Array.isArray(assignees)) continue;
             for (const a of assignees) {
                 if (a?.name) closingUsersMap[a.name] = (closingUsersMap[a.name] || 0) + 1;
+            }
+        }
+        const assignedUsersMap = {};
+        for (const t of assignedUsersRows) {
+            let assignees = t.assignees;
+            if (typeof assignees === "string") { try { assignees = JSON.parse(assignees); } catch { assignees = []; } }
+            if (!Array.isArray(assignees)) continue;
+            for (const a of assignees) {
+                if (a?.name) {
+                    if (!assignedUsersMap[a.name]) assignedUsersMap[a.name] = { open: 0, closed: 0 };
+                    if (t.status === "Closed") assignedUsersMap[a.name].closed++;
+                    else assignedUsersMap[a.name].open++;
+                }
             }
         }
         const result = {
@@ -1364,6 +1387,7 @@ app.get("/api/stats/dashboard", async (req, res) => {
                 unassigned: Number(unassignedRows[0]?.cnt) || 0,
             },
             closingUsers: closingUsersMap,
+            assignedUsers: assignedUsersMap,
         };
         cacheSet(cacheKey, result, CACHE_TTL.stats);
         res.json(result);

@@ -267,6 +267,7 @@ export default function HelpDesk() {
   const [dashboardOrg, setDashboardOrg] = useState("all");
   const [catBreakdownExpanded, setCatBreakdownExpanded] = useState(false);
   const [closuresByPersonExpanded, setClosuresByPersonExpanded] = useState(false);
+  const [assignmentsByPersonExpanded, setAssignmentsByPersonExpanded] = useState(false);
 
   const [dashboardOrgSearch, setDashboardOrgSearch] = useState("");
   const [showDashboardOrgDD, setShowDashboardOrgDD] = useState(false);
@@ -1644,7 +1645,7 @@ export default function HelpDesk() {
 
   const stats = useMemo(() => ({ total: fbr.length, open: fbr.filter(x => x.status === "Open").length, closed: fbr.filter(x => x.status === "Closed").length, critical: fbr.filter(x => x.priority === "Critical").length }), [fbr]);
 
-  const [dashboardStatsMap, setDashboardStatsMap] = useState({ priority: [], category: [], daily: [] });
+  const [dashboardStatsMap, setDashboardStatsMap] = useState({ priority: [], category: [], daily: [], assignedUsers: {} });
   const [dashboardStatsLoading, setDashboardStatsLoading] = useState(false);
   const [dashboardRefreshTick, setDashboardRefreshTick] = useState(0);
 
@@ -1834,6 +1835,20 @@ export default function HelpDesk() {
       color: PIE_COLORS[i % PIE_COLORS.length]
     })).sort((a, b) => b.value - a.value);
   }, [agentStatsMap, dashboardStatsMap, users]);
+
+  const dashboardAssignedUsersFull = useMemo(() => {
+    const assignedMap = dashboardStatsMap.assignedUsers ?? {};
+    return users.filter(u => u.active !== false).map((u, i) => {
+      const entry = assignedMap[u.name] || { open: 0, closed: 0 };
+      return {
+        label: u.name,
+        open: entry.open,
+        closed: entry.closed,
+        value: entry.open + entry.closed,
+        color: PIE_COLORS[i % PIE_COLORS.length],
+      };
+    }).sort((a, b) => b.value - a.value);
+  }, [dashboardStatsMap, users]);
 
   // ✅ NEW: Yearly data for reports (30+ days)
   const yearlyData = useMemo(() => {
@@ -3180,6 +3195,8 @@ export default function HelpDesk() {
               dashboardClosingUsersFull={dashboardClosingUsersFull}
               catBreakdownExpanded={catBreakdownExpanded} setCatBreakdownExpanded={setCatBreakdownExpanded}
               closuresByPersonExpanded={closuresByPersonExpanded} setClosuresByPersonExpanded={setClosuresByPersonExpanded}
+              assignmentsByPersonExpanded={assignmentsByPersonExpanded} setAssignmentsByPersonExpanded={setAssignmentsByPersonExpanded}
+              dashboardAssignedUsersFull={dashboardAssignedUsersFull}
               setSelTicket={setSelTicket}
               switchView={switchView}
               setTvFilter={setTvFilter}
