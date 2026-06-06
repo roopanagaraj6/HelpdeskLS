@@ -533,7 +533,7 @@ export function Modals(props) {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 14 }}>
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", display: "block", marginBottom: 5 }}>Organization *</label>
-                  <select value={editTicket.org} onChange={e => setEditTicket({ ...editTicket, org: e.target.value })} style={{ ...iS, width: "100%", fontSize: 13 }}>
+                  <select value={editTicket.org} onChange={e => setEditTicket({ ...editTicket, org: e.target.value, department: "" })} style={{ ...iS, width: "100%", fontSize: 13 }}>
                     <option value="">Select…</option>
                     {orgs.map(o => <option key={o.id}>{o.name}</option>)}
                   </select>
@@ -543,7 +543,7 @@ export function Modals(props) {
                   <label style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", display: "block", marginBottom: 5 }}>Department</label>
                   <select value={editTicket.department} onChange={e => setEditTicket({ ...editTicket, department: e.target.value })} style={{ ...iS, width: "100%", fontSize: 13 }}>
                     <option value="">Select…</option>
-                    {departments.map(d => <option key={d.id}>{d.name}</option>)}
+                    {departments.filter(d => !editTicket.org || d.orgName === editTicket.org).map(d => <option key={d.id}>{d.name}</option>)}
                   </select>
                 </div>
 
