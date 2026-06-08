@@ -1471,11 +1471,11 @@ export default function HelpDesk() {
     if (dashboardTimePeriod !== "all" && cvd.id !== "reopened") {
       const cutoff = new Date();
       if (dashboardTimePeriod === "1d") cutoff.setHours(0, 0, 0, 0);
-      else if (dashboardTimePeriod === "7d") cutoff.setDate(cutoff.getDate() - 7);
-      else if (dashboardTimePeriod === "1m") cutoff.setMonth(cutoff.getMonth() - 1);
-      else if (dashboardTimePeriod === "3m") cutoff.setMonth(cutoff.getMonth() - 3);
-      else if (dashboardTimePeriod === "6m") cutoff.setMonth(cutoff.getMonth() - 6);
-      else if (dashboardTimePeriod === "1y") cutoff.setFullYear(cutoff.getFullYear() - 1);
+      else if (dashboardTimePeriod === "7d") { cutoff.setDate(cutoff.getDate() - 7); cutoff.setHours(0, 0, 0, 0); }
+      else if (dashboardTimePeriod === "1m") { cutoff.setMonth(cutoff.getMonth() - 1); cutoff.setHours(0, 0, 0, 0); }
+      else if (dashboardTimePeriod === "3m") { cutoff.setMonth(cutoff.getMonth() - 3); cutoff.setHours(0, 0, 0, 0); }
+      else if (dashboardTimePeriod === "6m") { cutoff.setMonth(cutoff.getMonth() - 6); cutoff.setHours(0, 0, 0, 0); }
+      else if (dashboardTimePeriod === "1y") { cutoff.setFullYear(cutoff.getFullYear() - 1); cutoff.setHours(0, 0, 0, 0); }
       const isClosed = t.status === "Closed";
       const closedDate = isClosed
         ? (t.closedAt ? new Date(t.closedAt) : (() => { const e = (t.timeline||[]).slice().reverse().find(e=>e.action?.includes("Status changed to Closed")); return e?.date ? new Date(e.date) : null; })())
