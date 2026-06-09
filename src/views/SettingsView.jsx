@@ -27,6 +27,7 @@ function ScheduledTasksTab({ currentUser, orgs, categories, users, locations, de
     priority: "Standard", category: "", assignees: [], location: "",
     reportedBy: currentUser?.name || "",
     frequency: "weekly", dayOfWeek: 1, daysOfWeek: [1, 4], dayOfMonth: 1, timeOfDay: "09:00", active: true,
+startDate: "", endDate: "",
   });
   const [form, setForm] = React.useState(emptyForm());
 
@@ -37,7 +38,7 @@ function ScheduledTasksTab({ currentUser, orgs, categories, users, locations, de
   }, []);
 
   const openAdd = () => { setForm(emptyForm()); setEditTask(null); setShowModal(true); };
-  const openEdit = (t) => { setForm({ ...t, daysOfWeek: t.daysOfWeek && t.daysOfWeek.length ? t.daysOfWeek : [1, 4] }); setEditTask(t); setShowModal(true); };
+  const openEdit = (t) => { setForm({ ...t, daysOfWeek: t.daysOfWeek && t.daysOfWeek.length ? t.daysOfWeek : [1, 4], startDate: t.startDate || "", endDate: t.endDate || "" }); setEditTask(t); setShowModal(true); };
 
   const save = async () => {
     if (!form.name.trim()) return setCustomAlert({ show: true, message: "Task name is required", type: "error" });
@@ -137,7 +138,8 @@ function ScheduledTasksTab({ currentUser, orgs, categories, users, locations, de
                   </span>
                   {t.nextRunAt && <span>Next: {new Date(t.nextRunAt).toLocaleString()}</span>}
                   {t.lastRunAt && <span>Last ran: {new Date(t.lastRunAt).toLocaleString()}</span>}
-                </div>
+                  {(t.startDate || t.endDate) && <span>Period: {t.startDate || "∞"} → {t.endDate || "∞"}</span>}                
+                  </div>
               </div>
               <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
                 <button onClick={() => toggle(t)} style={{ padding: "5px 10px", fontSize: 11, fontWeight: 600, borderRadius: 6, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", color: t.active ? "#f59e0b" : "#22c55e" }}>
@@ -181,6 +183,14 @@ function ScheduledTasksTab({ currentUser, orgs, categories, users, locations, de
                 <FF label="Time of Day">
                   <input type="time" style={iS} value={form.timeOfDay}
                     onChange={e => setForm(f => ({ ...f, timeOfDay: e.target.value }))} />
+                </FF>
+                <FF label="Active From (optional)">
+                  <input type="date" style={iS} value={form.startDate || ""}
+                    onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} />
+                </FF>
+                <FF label="Active Until (optional)">
+                  <input type="date" style={iS} value={form.endDate || ""}
+                    onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} />
                 </FF>
                 {form.frequency === "weekly" && (
                   <FF label="Day of Week">

@@ -283,6 +283,8 @@ const ScheduledTask = sequelize.define("ScheduledTask", {
     dayOfMonth:  { type: DataTypes.INTEGER, defaultValue: 1 },
     timeOfDay:   { type: DataTypes.STRING, defaultValue: "09:00" },
     active:      { type: DataTypes.BOOLEAN, defaultValue: true },
+    startDate:   { type: DataTypes.DATEONLY, defaultValue: null },
+    endDate:     { type: DataTypes.DATEONLY, defaultValue: null },
     lastRunAt:   { type: DataTypes.DATE, defaultValue: null },
     nextRunAt:   { type: DataTypes.DATE, defaultValue: null },
     createdBy:   { type: DataTypes.STRING, defaultValue: "" },
@@ -2149,25 +2151,31 @@ async function runScheduledTasks() {
         let counter = (maxRow && maxRow.maxNum ? maxRow.maxNum : 1000) + 1;
         for (const task of due) {
             try {
-                let tid = "TKT-" + String(counter).padStart(4, "0");
-                while (await Ticket.findByPk(tid)) { counter++; tid = "TKT-" + String(counter).padStart(4, "0"); }
-                await Ticket.create({
-                    id: tid,
-                    summary: task.summary,
-                    description: task.description || "",
-                    org: task.org || "",
-                    department: task.department || "",
-                    reportedBy: task.reportedBy || "Scheduled Task",
-                    assignees: task.assignees || [],
-                    priority: task.priority || "Standard",
-                    category: task.category || "",
-                    status: "Open",
-                    location: task.location || "",
-                    timeline: [{ action: "Created", by: "Scheduled Task", date: now.toISOString(), note: "Auto-created by scheduled task: " + task.name }],
-                    comments: [],
-                    customAttrs: {},
-                });
-                counter++;
+                const todayIST = new Date(new Date().getTime() + IST_OFFSET_MS).toISOString().slice(0, 10);
+                if (task.startDate && todayIST < task.startDate) { await task.update({ nextRunAt: calcNextRun(task, now) }); continue; }
+                if (task.endDate && todayIST > task.endDate) { await task.update({ active: false, nextRunAt: null }); continue; }
+                const taskAssignees = Array.isArray(task.assignees) && task.assignees.length > 0 ? task.assignees : [null];
+                for (const assignee of taskAssignees) {
+                    let tid = "TKT-" + String(counter).padStart(4, "0");
+                    while (await Ticket.findByPk(tid)) { counter++; tid = "TKT-" + String(counter).padStart(4, "0"); }
+                    await Ticket.create({
+                        id: tid,
+                        summary: task.summary,
+                        description: task.description || "",
+                        org: task.org || "",
+                        department: task.department || "",
+                        reportedBy: task.reportedBy || "Scheduled Task",
+                        assignees: assignee ? [assignee] : [],
+                        priority: task.priority || "Standard",
+                        category: task.category || "",
+                        status: "Open",
+                        location: task.location || "",
+                        timeline: [{ action: "Created", by: "Scheduled Task", date: now.toISOString(), note: "Auto-created by scheduled task: " + task.name }],
+                        comments: [],
+                        customAttrs: {},
+                    });
+                    counter++;
+                }
                 cacheDel("paginated:", "counts", "stats:", "static:categories");
                 await task.update({ lastRunAt: now, nextRunAt: calcNextRun(task, now) });
                 console.log("Scheduled task [" + task.name + "] created ticket " + tid);
