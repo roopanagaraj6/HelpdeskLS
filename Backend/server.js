@@ -1554,7 +1554,7 @@ app.get("/api/tickets/report", async (req, res) => {
             attributes: [
                 "id","summary","status","priority","category","org",
                 "department","contact","reportedBy","assignees","location",
-                "createdAt","updatedAt","dueDate","closedAt",
+                "createdAt","updatedAt","dueDate","closedAt","timeline",
             ],
             order: [["createdAt", "DESC"]],
             raw: true,
@@ -2158,8 +2158,7 @@ async function runScheduledTasks() {
                 for (const assignee of taskAssignees) {
                     let tid = "TKT-" + String(counter).padStart(4, "0");
                     while (await Ticket.findByPk(tid)) { counter++; tid = "TKT-" + String(counter).padStart(4, "0"); }
-                    await Ticket.create({
-                        id: tid,
+                    await Ticket.create({                        id: tid,
                         summary: task.summary,
                         description: task.description || "",
                         org: task.org || "",

@@ -118,14 +118,17 @@ export function ReportsView(props) {
               if (key === "createdAt" || key === "updatedAt" || key === "dueDate") return row[key] ? new Date(row[key]).toLocaleDateString() : "—";
               if (key === "closedAt") {
                 if (row.closedAt) return new Date(row.closedAt).toLocaleDateString();
-                const closeEvent = (row.timeline || []).slice().reverse().find(e => e.action?.includes("Status changed to Closed"));
+                const tl = typeof row.timeline === "string" ? (() => { try { return JSON.parse(row.timeline); } catch { return []; } })() : (row.timeline || []);
+                const closeEvent = Array.isArray(tl) ? tl.slice().reverse().find(e => e.action?.includes("Status changed to Closed")) : null;
                 return closeEvent?.date ? new Date(closeEvent.date).toLocaleDateString() : "—";
               }
               if (key === "closedBy") {
                 if (row.closedBy) return row.closedBy;
-                const closeEvent = (row.timeline || []).slice().reverse().find(e => e.action?.includes("Status changed to Closed"));
-                const match = closeEvent?.note?.match(/Closed by:\s*([^·\n]+)/);
-                return match ? match[1].trim() : "—";
+                const tl2 = typeof row.timeline === "string" ? (() => { try { return JSON.parse(row.timeline); } catch { return []; } })() : (row.timeline || []);
+                const closeEvt = tl2.slice().reverse().find(e => e.action?.includes("Status changed to Closed"));
+                if (!closeEvt) return "—";
+                const match = closeEvt.note?.match(/Closed by:\s*([^·\n]+)/);
+                return match ? match[1].trim() : (closeEvt.by || "—");
               }
               if (key === "progress") return row[key] != null ? `${row[key]}%` : "—";
               return row[key] || "—";
