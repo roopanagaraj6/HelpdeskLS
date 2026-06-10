@@ -291,7 +291,7 @@ export const TicketsView = React.memo(function TicketsView(props) {
                 {/* ── Bulk Close - ADMIN ONLY, hidden in closed view ── */}
                 {(() => {
                   const openSelected = tickets.filter(t => selectedIds.has(t.id) && t.status !== "Closed");
-                  return openSelected.length > 0 && ["Admin", "Manager", "Agent"].includes(currentUser?.role) && tvFilter !== "closed" && (
+                  return openSelected.length > 0 && ["Admin", "Manager"].includes(currentUser?.role) && tvFilter !== "closed" && (
                   <button onClick={() => {
                     setConfirmModal({
                       show: true,
@@ -382,7 +382,7 @@ export const TicketsView = React.memo(function TicketsView(props) {
 
             <div style={{ overflowX: "auto" }}>
               {/* Select-all-filtered banner — shown when current page is fully selected but more exist */}
-              {["Admin", "Manager", "Agent"].includes(currentUser?.role) && (() => {
+              {["Admin", "Manager"].includes(currentUser?.role) && (() => {
                 const pageIds = currentTickets.map(t => t.id);
                 const allPageSelected = pageIds.length > 0 && pageIds.every(id => selectedIds.has(id));
                 const allFilteredSelected = allSortedTickets.length > 0 && allSortedTickets.every(t => selectedIds.has(t.id));
@@ -409,7 +409,7 @@ export const TicketsView = React.memo(function TicketsView(props) {
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead><tr style={{ background: "#f8fafc" }}>
                   {/* Checkbox column — Admin only: checks/unchecks current page */}
-                  {["Admin", "Manager", "Agent"].includes(currentUser?.role) && (() => {
+                  {["Admin", "Manager"].includes(currentUser?.role) && (() => {
                     const pageIds = currentTickets.map(t => t.id);
                     const allPageSelected = pageIds.length > 0 && pageIds.every(id => selectedIds.has(id));
                     const somePageSelected = pageIds.some(id => selectedIds.has(id));
@@ -447,7 +447,7 @@ export const TicketsView = React.memo(function TicketsView(props) {
                 </tr></thead>
                 <tbody>{isLoading ? Array.from({ length: 10 }).map((_, i) => (
                   <tr key={`skel-${i}`} style={{ background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
-                    {["Admin", "Manager", "Agent"].includes(currentUser?.role) && <td style={tdStyle}><div style={{ ...skeletonStyle, width: 16, height: 16, borderRadius: 3 }} /></td>}
+                    {["Admin", "Manager"].includes(currentUser?.role) && <td style={tdStyle}><div style={{ ...skeletonStyle, width: 16, height: 16, borderRadius: 3 }} /></td>}
                     {[...visibleTicketCols].map(k => (
                       <td key={k} style={tdStyle}>
                         <div style={{ ...skeletonStyle, width: k === "summary" ? "80%" : k === "id" ? 70 : k === "assignees" ? 90 : k === "status" ? 60 : k === "created" ? 80 : "60%", animationDelay: `${i * 60}ms` }} />
@@ -458,7 +458,7 @@ export const TicketsView = React.memo(function TicketsView(props) {
                 )) : currentTickets.map((t, rowIdx) => (
                   <tr key={t.id} className="rh tkt-row" style={{ cursor: "pointer", background: selectedIds.has(t.id) ? "#eff6ff" : "#fff", animationDelay: `${Math.min(rowIdx * 20, 200)}ms` }}>
                     {/* ✅ Checkboxes only for Admin */}
-                    {["Admin", "Manager", "Agent"].includes(currentUser?.role) && (
+                    {["Admin", "Manager"].includes(currentUser?.role) && (
                       <td style={tdStyle} onClick={e => e.stopPropagation()}><input type="checkbox" checked={selectedIds.has(t.id)} onChange={() => toggleSel(t.id)} style={{ cursor: "pointer" }} /></td>
                     )}
                     {visibleTicketCols.has("id") && <td style={tdStyle} onClick={() => setSelTicket(t)}><span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11.5, color: "#3b82f6", fontWeight: 500 }}>{t.id}</span>{t.category === "Webcast" && <span style={{ marginLeft: 5, fontSize: 10, background: "#fff7ed", color: "#f97316", padding: "1px 5px", borderRadius: 4, fontWeight: 600 }}>📡</span>}</td>}
