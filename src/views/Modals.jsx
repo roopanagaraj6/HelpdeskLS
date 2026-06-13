@@ -758,6 +758,7 @@ export function Modals(props) {
                       </div>
                       {users.filter(u =>
                         u.active &&
+                        u.role === "Agent" &&
                         !selTicket.assignees?.find(a => a.id === u.id) &&
                         (forwardAgentSearch === "" || u.name.toLowerCase().includes(forwardAgentSearch.toLowerCase()))
                       ).map(u => (
