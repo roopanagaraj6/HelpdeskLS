@@ -18,6 +18,7 @@ export function useNavHandlers(ctx) {
     users,
     setCustomAlert, addDailyNotif,
     view, cvd, cpv,
+    switchView,
   } = ctx;
 
   // ─── NAVIGATION HELPERS ────────────────────────────────────────────────────
@@ -51,18 +52,6 @@ export function useNavHandlers(ctx) {
       switch (notificationType) {
         // ── TICKET EVENTS ──
         case "ticket_created":
-          if (notification.ticketId) {
-            let ticket = dashboardData.find(t => t.id === notification.ticketId);
-            if (!ticket) ticket = tickets.find(t => t.id === notification.ticketId);
-            if (ticket) {
-              setSelTicket(ticket);
-              switchView("tickets");
-            } else {
-              setCustomAlert({ show: true, message: "Ticket not found", type: "error" });
-            }
-          }
-        break;
-
         case "ticket_closed":
         case "ticket_status":
         case "ticket_edited":
@@ -70,14 +59,15 @@ export function useNavHandlers(ctx) {
         case "forward_approved":
         case "forward_rejected":
           if (notification.ticketId) {
-            // First try to find in dashboardData, then in all tickets
-            let ticket = dashboardData.find(t => t.id === notification.ticketId);
+            let ticket = tickets.find(t => t.id === notification.ticketId);
             if (!ticket) {
-              ticket = tickets.find(t => t.id === notification.ticketId);
+              try {
+                const res = await axios.get(`${TICKETS_API}/${notification.ticketId}`);
+                ticket = res.data;
+              } catch { }
             }
             if (ticket) {
               setSelTicket(ticket);
-              switchView("tickets");
             } else {
               setCustomAlert({ show: true, message: "Ticket not found", type: "error" });
             }

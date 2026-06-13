@@ -1564,7 +1564,7 @@ export default function HelpDesk() {
     setAuthError, setAuthMessage, setView,
     agentUser: selAgent, setAgentUser: setSelAgent,
     dailyNotifs, setBellUnread, setShowBellPanel, setShowInboxPanel,
-    inboxItems, setInboxItems, seenActivityIds,
+    inboxItems, setInboxItems, setInboxUnread, seenActivityIds,
     setTvFilter, setPvFilter, setSettingsTab,
     addDailyNotif,
     isTrueWebcast,
@@ -1574,6 +1574,7 @@ export default function HelpDesk() {
     setShowChangePassword,
     profileForm, setProfileForm,
     setEditProfileOpen,
+    switchView,
   };
 
   // ✅ NEW: Filter for webcast tickets only
