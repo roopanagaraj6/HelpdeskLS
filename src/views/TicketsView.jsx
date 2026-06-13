@@ -216,11 +216,11 @@ export const TicketsView = React.memo(function TicketsView(props) {
                       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                         <div>
                           <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 3 }}>From</div>
-                          <input type="date" value={ticketDateFrom} onChange={e => setTicketDateFrom(e.target.value)} style={{ width: "100%", padding: "5px 8px", border: "1.5px solid #e2e8f0", borderRadius: 6, fontSize: 12, fontFamily: "'DM Sans',sans-serif", outline: "none", boxSizing: "border-box" }} />
+                          <input type="date" value={ticketDateFrom} onChange={e => setTicketDateFrom(e.target.value)} onKeyDown={e => e.preventDefault()} onClick={e => e.target.showPicker?.()} style={{ width: "100%", padding: "5px 8px", border: "1.5px solid #e2e8f0", borderRadius: 6, fontSize: 12, fontFamily: "'DM Sans',sans-serif", outline: "none", boxSizing: "border-box", cursor: "pointer", caretColor: "transparent" }} />
                         </div>
                         <div>
                           <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 3 }}>To</div>
-                          <input type="date" value={ticketDateTo} onChange={e => setTicketDateTo(e.target.value)} style={{ width: "100%", padding: "5px 8px", border: "1.5px solid #e2e8f0", borderRadius: 6, fontSize: 12, fontFamily: "'DM Sans',sans-serif", outline: "none", boxSizing: "border-box" }} />
+                          <input type="date" value={ticketDateTo} onChange={e => setTicketDateTo(e.target.value)} onKeyDown={e => e.preventDefault()} onClick={e => e.target.showPicker?.()} style={{ width: "100%", padding: "5px 8px", border: "1.5px solid #e2e8f0", borderRadius: 6, fontSize: 12, fontFamily: "'DM Sans',sans-serif", outline: "none", boxSizing: "border-box", cursor: "pointer", caretColor: "transparent" }} />
                         </div>
                       </div>
                     </div>
