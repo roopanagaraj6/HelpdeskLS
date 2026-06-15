@@ -2123,7 +2123,8 @@ app.get("/api/scheduled-tasks", async (req, res) => {
 
 app.post("/api/scheduled-tasks", async (req, res) => {
     try {
-        const task = await ScheduledTask.create(req.body);
+        const body = { ...req.body, startDate: req.body.startDate || null, endDate: req.body.endDate || null };
+        const task = await ScheduledTask.create(body);
         await task.update({ nextRunAt: calcNextRun(task) });
         res.status(201).json(fmt(task));
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -2133,7 +2134,8 @@ app.put("/api/scheduled-tasks/:id", async (req, res) => {
     try {
         const task = await ScheduledTask.findByPk(req.params.id);
         if (!task) return res.status(404).json({ error: "Not found" });
-        await task.update(req.body);
+        const body = { ...req.body, startDate: req.body.startDate || null, endDate: req.body.endDate || null };
+        await task.update(body);
         await task.update({ nextRunAt: calcNextRun(task) });
         res.json(fmt(task));
     } catch (err) { res.status(500).json({ error: err.message }); }
