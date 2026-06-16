@@ -331,7 +331,7 @@ export function useSettingsHandlers(ctx) {
       setCustomAttrs(updated);
       setNewAttr({ name: "", type: "text", options: "", required: false, section: "grid", sortOrder: 0 });
       // Open layout modal with a draft copy
-      setLayoutDraft(updated.map((a, i) => ({ ...a, sortOrder: a.sortOrder ?? i })));
+      setDraftLayout(updated.map((a, i) => ({ ...a, sortOrder: a.sortOrder ?? i })));
       setShowAttrLayoutModal(true);
     } catch (err) {
       console.error("Error adding attribute:", err);
@@ -341,7 +341,7 @@ export function useSettingsHandlers(ctx) {
 
   const saveLayoutDraft = async () => {
     // Assign sortOrders based on current draft order and persist
-    const withOrders = layoutDraft.map((a, i) => ({ ...a, sortOrder: i }));
+    const withOrders = draftLayout.map((a, i) => ({ ...a, sortOrder: i }));
     try {
       await Promise.all(withOrders.map(a => axios.put(`${CUSTOM_ATTRS_API}/${a.id}`, a)));
       setCustomAttrs(withOrders);

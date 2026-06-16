@@ -188,6 +188,8 @@ export function Modals(props) {
   const [locationSearch, setLocationSearch] = useState("");
   const [projCategorySearch, setProjCategorySearch] = useState("");
   const [forwardAgentSearch, setForwardAgentSearch] = useState("");
+  const [layoutDragOver, setLayoutDragOver] = useState(null);
+  const [layoutDragIdx, setLayoutDragIdx] = useState(null);
   const projectCategories = categories || [];
 
   return (
@@ -1653,7 +1655,7 @@ export function Modals(props) {
                         <div key={f} style={{ padding: "5px 8px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 5, fontSize: 10, color: "#94a3b8", fontWeight: 500 }}>{f}</div>
                       ))}
                       {/* Grid section custom fields */}
-                      {layoutDraft.filter(a => (a.section || "grid") === "grid").map(a => (
+                      {draftLayout.filter(a => (a.section || "grid") === "grid").map(a => (
                         <div key={a.id} style={{ padding: "5px 8px", background: "#eff6ff", border: "1.5px solid #bfdbfe", borderRadius: 5, fontSize: 10, color: "#1d4ed8", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
                           <span style={{ fontSize: 9, color: "#6366f1" }}>⠿</span>{a.name}{a.required && <span style={{ color: "#ef4444" }}>*</span>}
                         </div>
@@ -1662,9 +1664,9 @@ export function Modals(props) {
                     {/* Assignees */}
                     <div style={{ padding: "5px 8px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 5, fontSize: 10, color: "#94a3b8", fontWeight: 500, marginTop: 4 }}>Assignees</div>
                     {/* Below-assignees custom fields */}
-                    {layoutDraft.filter(a => (a.section || "grid") === "below-assignees").length > 0 && (
+                    {draftLayout.filter(a => (a.section || "grid") === "below-assignees").length > 0 && (
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
-                        {layoutDraft.filter(a => (a.section || "grid") === "below-assignees").map(a => (
+                        {draftLayout.filter(a => (a.section || "grid") === "below-assignees").map(a => (
                           <div key={a.id} style={{ padding: "5px 8px", background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 5, fontSize: 10, color: "#92400e", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
                             <span style={{ fontSize: 9 }}>⠿</span>{a.name}{a.required && <span style={{ color: "#ef4444" }}>*</span>}
                           </div>
@@ -1675,9 +1677,9 @@ export function Modals(props) {
                     <div style={{ padding: "5px 8px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 5, fontSize: 10, color: "#94a3b8", fontWeight: 500, marginTop: 4 }}>Summary *</div>
                     <div style={{ padding: "5px 8px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 5, fontSize: 10, color: "#94a3b8", fontWeight: 500, height: 28 }}>Description</div>
                     {/* Bottom custom fields */}
-                    {layoutDraft.filter(a => (a.section || "grid") === "bottom").length > 0 && (
+                    {draftLayout.filter(a => (a.section || "grid") === "bottom").length > 0 && (
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
-                        {layoutDraft.filter(a => (a.section || "grid") === "bottom").map(a => (
+                        {draftLayout.filter(a => (a.section || "grid") === "bottom").map(a => (
                           <div key={a.id} style={{ padding: "5px 8px", background: "#f0fdf4", border: "1.5px solid #bbf7d0", borderRadius: 5, fontSize: 10, color: "#166534", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
                             <span style={{ fontSize: 9 }}>⠿</span>{a.name}{a.required && <span style={{ color: "#ef4444" }}>*</span>}
                           </div>
@@ -1705,10 +1707,10 @@ export function Modals(props) {
                       e.preventDefault();
                       setLayoutDragOver(null);
                       if (layoutDragIdx === null) return;
-                      const updated = layoutDraft.map((a, i) =>
+                      const updated = draftLayout.map((a, i) =>
                         i === layoutDragIdx ? { ...a, section: zone.key } : a
                       );
-                      setLayoutDraft(updated);
+                      setDraftLayout(updated);
                       setLayoutDragIdx(null);
                     }}
                     style={{ borderRadius: 10, border: `2px dashed ${layoutDragOver === zone.key ? "#3b82f6" : zone.border}`, background: layoutDragOver === zone.key ? "#eff6ff" : zone.bg, padding: 10, minHeight: 70, transition: "all 0.15s" }}
@@ -1716,10 +1718,10 @@ export function Modals(props) {
                     <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 2 }}>{zone.label}</div>
                     <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 8 }}>{zone.subtitle}</div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, minHeight: 28 }}>
-                      {layoutDraft.filter(a => (a.section || "grid") === zone.key).length === 0 && (
+                      {draftLayout.filter(a => (a.section || "grid") === zone.key).length === 0 && (
                         <span style={{ fontSize: 11, color: "#cbd5e1", alignSelf: "center" }}>Drop fields here</span>
                       )}
-                      {layoutDraft
+                      {draftLayout
                         .map((a, idx) => ({ ...a, _idx: idx }))
                         .filter(a => (a.section || "grid") === zone.key)
                         .map(a => (
@@ -1747,7 +1749,7 @@ export function Modals(props) {
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "#374151", marginBottom: 7, textTransform: "uppercase", letterSpacing: "0.04em" }}>Field Order (drag to reorder)</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                    {layoutDraft.map((a, idx) => (
+                    {draftLayout.map((a, idx) => (
                       <div
                         key={a.id}
                         draggable
@@ -1758,10 +1760,10 @@ export function Modals(props) {
                           e.preventDefault();
                           setLayoutDragOver(null);
                           if (layoutDragIdx === null || layoutDragIdx === idx) return;
-                          const arr = [...layoutDraft];
+                          const arr = [...draftLayout];
                           const moved = arr.splice(layoutDragIdx, 1)[0];
                           arr.splice(idx, 0, moved);
-                          setLayoutDraft(arr);
+                          setDraftLayout(arr);
                           setLayoutDragIdx(null);
                         }}
                         style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", background: layoutDragOver === `order-${idx}` ? "#eff6ff" : "#fafafa", border: `1.5px solid ${layoutDragOver === `order-${idx}` ? "#3b82f6" : "#f1f5f9"}`, borderRadius: 7, cursor: "grab", userSelect: "none", transition: "all 0.1s" }}
