@@ -2064,7 +2064,7 @@ export default function HelpDesk() {
           {/* FRONT: LOGIN */}
           <div style={{ background: "rgba(255, 255, 255, 0.25)", backdropFilter: "blur(10px)", padding: 40, borderRadius: 20, boxShadow: "0 8px 32px rgba(0, 0, 0, 0.15)", backfaceVisibility: "hidden", position: isLogin ? "relative" : "absolute", top: 0, left: 0, width: "100%", border: "1px solid rgba(255, 255, 255, 0.4)", fontFamily: "'Arial Hebrew', sans-serif", color: "#000" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 30 }}>
-              <div style={{ width: 44, height: 44, background: "linear-gradient(135deg,#3b82f6,#8b5cf6)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: "#fff" }}>⚡</div>
+              <div style={{ width: 44, height: 44, background: "linear-gradient(135deg,#3b82f6,#8b5cf6)", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: "#fff" }}>⚡</div>
               <div style={{ fontSize: 24, fontWeight: 700, color: "#000" }}>DeskFlow</div>
             </div>
             <div style={{ display: "flex", background: "rgba(255, 255, 255, 0.15)", borderRadius: 10, padding: 4, marginBottom: 24, border: "1px solid rgba(255, 255, 255, 0.2)" }}>
@@ -2084,7 +2084,7 @@ export default function HelpDesk() {
           {/* BACK: SIGNUP */}
           <div style={{ background: "rgba(255, 255, 255, 0.25)", backdropFilter: "blur(10px)", padding: 40, borderRadius: 20, boxShadow: "0 8px 32px rgba(0, 0, 0, 0.15)", backfaceVisibility: "hidden", transform: "rotateY(180deg)", position: !isLogin ? "relative" : "absolute", top: 0, left: 0, width: "100%", border: "1px solid rgba(255, 255, 255, 0.4)", fontFamily: "'Arial Hebrew', sans-serif", color: "#000" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 30 }}>
-              <div style={{ width: 44, height: 44, background: "linear-gradient(135deg,#3b82f6,#8b5cf6)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: "#fff" }}>⚡</div>
+              <div style={{ width: 44, height: 44, background: "linear-gradient(135deg,#3b82f6,#8b5cf6)", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: "#fff" }}>⚡</div>
               <div style={{ fontSize: 24, fontWeight: 700, color: "#000" }}>DeskFlow</div>
             </div>
             <div style={{ display: "flex", background: "rgba(255, 255, 255, 0.15)", borderRadius: 10, padding: 4, marginBottom: 24, border: "1px solid rgba(255, 255, 255, 0.2)" }}>
@@ -2179,7 +2179,7 @@ export default function HelpDesk() {
 
       {deleteConfirmation?.show && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }}>
-          <div style={{ background: "#faf8f4", borderRadius: 12, padding: 24, maxWidth: 500, boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+          <div style={{ background: "#faf8f4", borderRadius: 4, padding: 24, maxWidth: 500, boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
             <h2 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700, color: "#0f172a" }}>{deleteConfirmation.title}</h2>
             <p style={{ margin: "0 0 20px", fontSize: 13, color: "#475569", lineHeight: 1.5 }}>{deleteConfirmation.message}</p>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
@@ -2473,38 +2473,6 @@ export default function HelpDesk() {
               {/* Projects sub-menu removed — filter moved to action bar dropdown */}
             </React.Fragment>
           ))}
-        </div>
-        
-        {/* Global Org Filter */}
-        <div style={{ padding: "10px 10px 8px", borderTop: "1px solid #1e293b" }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "#60a5fa", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>🏢 Filter by Org</div>
-          <div style={{ position: "relative" }}>
-            <input
-              type="text"
-              placeholder="All Organizations"
-              value={dashboardOrgSearch ? dashboardOrgSearch : (dashboardOrg !== "all" ? dashboardOrg : "")}
-              onChange={e => setDashboardOrgSearch(e.target.value)}
-              onFocus={() => { setDashboardOrgSearch(""); setShowDashboardOrgDD(true); }}
-              style={{ width: "100%", padding: "7px 28px 7px 10px", borderRadius: 7, border: dashboardOrg !== "all" ? "1.5px solid #3b82f6" : "1px solid #334155", background: dashboardOrg !== "all" ? "#172554" : "#1e293b", color: "#e2e8f0", fontSize: 12, fontFamily: "'DM Sans',sans-serif", boxSizing: "border-box", outline: "none" }}
-            />
-            {(
-              <span onClick={() => { setDashboardOrg("all"); setDashboardOrgSearch(""); }} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", cursor: "pointer", color: "#60a5fa", fontSize: 16, lineHeight: 1 }}>×</span>
-            )}
-            {showDashboardOrgDD && (
-              <>
-                <div style={{ position: "fixed", inset: 0, zIndex: 199 }} onClick={() => { setShowDashboardOrgDD(false); setDashboardOrgSearch(""); }} />
-                <div ref={el => { if (el) { const rect = el.parentElement.getBoundingClientRect(); const spaceBelow = window.innerHeight - rect.bottom - 8; el.style.maxHeight = Math.min(180, spaceBelow) + "px"; } }} style={{ position: "absolute", left: 0, right: 0, top: "calc(100% + 4px)", background: "#1e293b", border: "1.5px solid #334155", borderRadius: 8, zIndex: 200, maxHeight: 180, overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
-                  <div onClick={() => { setDashboardOrg("all"); setShowDashboardOrgDD(false); setDashboardOrgSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", color: dashboardOrg === "all" ? "#60a5fa" : "#94a3b8", fontWeight: dashboardOrg === "all" ? 700 : 400, fontSize: 12, borderBottom: "1px solid #334155" }}>All Organizations</div>
-                  {[...orgs].sort((a,b) => a.name.localeCompare(b.name)).filter(o => dashboardOrgSearch === "" || o.name.toLowerCase().includes(dashboardOrgSearch.toLowerCase())).map(o => (
-                    <div key={o.id} onClick={() => { setDashboardOrg(o.name); setShowDashboardOrgDD(false); setDashboardOrgSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", color: dashboardOrg === o.name ? "#60a5fa" : "#e2e8f0", fontWeight: dashboardOrg === o.name ? 700 : 400, fontSize: 12, borderBottom: "1px solid #283548" }}>
-                      {o.name}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-          {dashboardOrg !== "all" && <div style={{ fontSize: 10, color: "#60a5fa", marginTop: 4, fontWeight: 600 }}>● Active filter</div>}
         </div>
 
         {/* New Ticket / Project buttons */}
@@ -3083,6 +3051,34 @@ export default function HelpDesk() {
           <div style={{ display: "flex", gap: 9, alignItems: "center" }}>
             {view === "dashboard" && (
               <>
+                {/* Org Filter Dropdown */}
+                <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                  <input
+                    type="text"
+                    placeholder=""
+                    value={dashboardOrgSearch ? dashboardOrgSearch : (dashboardOrg !== "all" ? dashboardOrg : "📊 All Organizations")}
+                    onChange={e => setDashboardOrgSearch(e.target.value)}
+                    onFocus={() => { setDashboardOrgSearch(""); setShowDashboardOrgDD(true); }}
+                    style={{ ...sS, width: 170, fontSize: 13, padding: "7px 30px 7px 10px", appearance: "none", WebkitAppearance: "none", borderColor: dashboardOrg !== "all" ? "#3b82f6" : "#e2e8f0", background: dashboardOrg !== "all" ? "#eff6ff" : "#fafafa", color: dashboardOrg !== "all" ? "#1d4ed8" : "#1e293b", fontWeight: dashboardOrg !== "all" ? 600 : 400, outline: "none" }}
+                  />
+                  <span onClick={() => { setDashboardOrg("all"); setDashboardOrgSearch(""); }} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", cursor: "pointer", color: dashboardOrg !== "all" ? "#3b82f6" : "#94a3b8", fontSize: dashboardOrg !== "all" ? 14 : 12, fontWeight: 700, lineHeight: 1, pointerEvents: dashboardOrg !== "all" ? "auto" : "none" }}>
+                    {dashboardOrg !== "all" ? "×" : "▾"}
+                  </span>
+                  {showDashboardOrgDD && (
+                    <>
+                      <div style={{ position: "fixed", inset: 0, zIndex: 199 }} onClick={() => { setShowDashboardOrgDD(false); setDashboardOrgSearch(""); }} />
+                      <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", width: 200, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 6, zIndex: 200, maxHeight: 200, overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
+                        <div onClick={() => { setDashboardOrg("all"); setShowDashboardOrgDD(false); setDashboardOrgSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: dashboardOrg === "all" ? "#3b82f6" : "#64748b", fontWeight: dashboardOrg === "all" ? 700 : 400, borderBottom: "1px solid #f1f5f9" }}>All Organizations</div>
+                        {[...orgs].sort((a,b) => a.name.localeCompare(b.name)).filter(o => dashboardOrgSearch === "" || o.name.toLowerCase().includes(dashboardOrgSearch.toLowerCase())).map(o => (
+                          <div key={o.id} onClick={() => { setDashboardOrg(o.name); setShowDashboardOrgDD(false); setDashboardOrgSearch(""); }} style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, color: dashboardOrg === o.name ? "#3b82f6" : "#1e293b", fontWeight: dashboardOrg === o.name ? 700 : 400, borderBottom: "1px solid #f8fafc" }}>
+                            {o.name}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
                 {/* Time Period Dropdown */}
                 <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
                   <select value={dashboardTimePeriod} onChange={e => setDashboardTimePeriod(e.target.value)} style={{ ...sS, width: 170, fontSize: 13, padding: "7px 30px 7px 10px", appearance: "none", WebkitAppearance: "none", borderColor: dashboardTimePeriod !== "all" ? "#3b82f6" : "#e2e8f0", background: dashboardTimePeriod !== "all" ? "#eff6ff" : "#fafafa", color: dashboardTimePeriod !== "all" ? "#1d4ed8" : "#1e293b", fontWeight: dashboardTimePeriod !== "all" ? 600 : 400 }}>
@@ -3577,7 +3573,7 @@ export default function HelpDesk() {
 />
       {agentDetailModal?.show && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }}>
-          <div style={{ background: "#faf8f4", borderRadius: 12, width: 360, padding: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+          <div style={{ background: "#faf8f4", borderRadius: 4, width: 360, padding: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#0f172a" }}>🟦 {agentDetailModal.user?.name} — On Ticket</h3>
               <button onClick={() => setAgentDetailModal({ show: false, user: null })} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#94a3b8" }}>×</button>

@@ -361,7 +361,7 @@ export function ReportsView(props) {
 
                 {/* Report Builder */}
                 {reportBuilderOpen && (
-                  <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
+                  <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 4, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                       <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0f172a" }}>🔧 Report Builder</h3>
                       {btn("← Back to Reports", () => setReportBuilderOpen(false), "#64748b", true)}
@@ -519,7 +519,7 @@ export function ReportsView(props) {
                     
                     {saveReportDialogOpen && (
                       <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 3000 }}>
-                        <div style={{ background: "#fff", borderRadius: 12, padding: 28, width: 360, boxShadow: "0 20px 60px rgba(0,0,0,0.25)" }}>
+                        <div style={{ background: "#fff", borderRadius: 4, padding: 28, width: 360, boxShadow: "0 20px 60px rgba(0,0,0,0.25)" }}>
                           <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 700, color: "#0f172a" }}>💾 Save Report</h3>
                           <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 6 }}>Report Name *</label>
                           <input autoFocus value={reportName} onChange={e => setReportName(e.target.value)} onKeyDown={e => { if (e.key === "Enter") saveReport(); if (e.key === "Escape") setSaveReportDialogOpen(false); }} placeholder="Enter report name…" style={{ width: "100%", padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: 7, fontSize: 13, boxSizing: "border-box", marginBottom: 20 }} />

@@ -85,7 +85,7 @@ export const TicketsView = React.memo(function TicketsView(props) {
 
   return (
     <>
-    <div style={{ background: "#faf8f4", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
+    <div style={{ background: "#faf8f4", borderRadius: 4, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
             <div style={{ padding: "11px 14px", borderBottom: "1px solid #f1f5f9", display: "flex", gap: 9, alignItems: "center", flexWrap: "wrap" }}>
               <input placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} style={{ ...iS, width: 200, fontSize: 13, padding: "7px 10px" }} />
               <span style={{ fontSize: 12, color: "#64748b" }}>{props.ticketTotalCount || allSortedTickets.length} tickets</span>

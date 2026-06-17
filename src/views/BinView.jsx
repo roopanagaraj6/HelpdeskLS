@@ -9,7 +9,7 @@ export function BinView(props) {
   } = props;
 
   return (
-    <div style={{ background: "#faf8f4", borderRadius: 12, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+    <div style={{ background: "#faf8f4", borderRadius: 4, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
       <h3 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700 }}>🧹 Bin</h3>
       <p style={{ margin: "0 0 18px", fontSize: 12, color: "#64748b" }}>Manage deleted tickets and projects. Auto-deleted after 30 days.</p>
 

@@ -153,7 +153,7 @@ export function AlertsView(props) {
                   <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8, paddingLeft: 2 }}>
                     {date}
                   </div>
-                  <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+                  <div style={{ background: "#fff", borderRadius: 4, border: "1px solid #e2e8f0", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
                     {items.map((n, i) => {
                       const tl = typeLabel(n.type);
                       return (
@@ -206,7 +206,7 @@ export function AlertsView(props) {
                         background: item.read ? "#fff" : "#f0f9ff",
                         border: `1px solid ${item.read ? "#e2e8f0" : "#bfdbfe"}`,
                         borderLeft: `4px solid ${item.read ? "#e2e8f0" : "#3b82f6"}`,
-                        borderRadius: 12, padding: "16px 18px",
+                        borderRadius: 4, padding: "16px 18px",
                         boxShadow: item.read ? "0 1px 3px rgba(0,0,0,0.04)" : "0 2px 8px rgba(59,130,246,0.1)",
                       }}>
                         <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>

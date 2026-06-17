@@ -81,7 +81,7 @@ startDate: "", endDate: "",
   const orgDepts = (departments || []).filter(d => !form.org || d.orgName === form.org);
 
   return (
-    <div style={{ background: "#faf8f4", borderRadius: 12, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+    <div style={{ background: "#faf8f4", borderRadius: 4, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
         <div>
           <h3 style={{ margin: "0 0 3px", fontSize: 15, fontWeight: 700 }}>Scheduled Tasks ({tasks.length})</h3>
@@ -425,7 +425,7 @@ export function SettingsView(props) {
   const [exportFilterValue, setExportFilterValue] = React.useState("");
   return (
     <div style={{ display: "flex", gap: 18, alignItems: "flex-start" }}>
-            <div style={{ width: 194, background: "#faf8f4", borderRadius: 12, padding: 9, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", flexShrink: 0 }}>
+            <div style={{ width: 194, background: "#faf8f4", borderRadius: 4, padding: 9, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", flexShrink: 0 }}>
               {stabs.map(t => (
                 <button key={t.id} onClick={() => { setSettingsTab(t.id); setNewSubcategory(""); setNewSubcatCatId(""); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 11px", borderRadius: 7, border: "none", cursor: "pointer", background: settingsTab === t.id ? "#eff6ff" : "transparent", color: settingsTab === t.id ? "#3b82f6" : "#374151", fontSize: 12.5, fontWeight: settingsTab === t.id ? 600 : 400, textAlign: "left", fontFamily: "'DM Sans',sans-serif", marginBottom: 2 }}>
                   <span>{t.icon}</span>{t.label}
@@ -433,7 +433,7 @@ export function SettingsView(props) {
               ))}
             </div>
             <div style={{ flex: 1 }}>
-              {(settingsTab === "organisations" || settingsTab === "departments") && <div style={{ background: "#faf8f4", borderRadius: 12, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+              {(settingsTab === "organisations" || settingsTab === "departments") && <div style={{ background: "#faf8f4", borderRadius: 4, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                 <h3 style={{ margin: "0 0 2px", fontSize: 15, fontWeight: 700 }}>Organizations & Departments</h3>
                 <p style={{ margin: "0 0 18px", fontSize: 12, color: "#64748b" }}>Each organization expands to show its departments. Drag departments to reorder.</p>
 
@@ -583,7 +583,7 @@ export function SettingsView(props) {
                   );
                 })()}
               </div>}
-              {settingsTab === "categories" && <div style={{ background: "#faf8f4", borderRadius: 12, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+              {settingsTab === "categories" && <div style={{ background: "#faf8f4", borderRadius: 4, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                 <h3 style={{ margin: "0 0 2px", fontSize: 15, fontWeight: 700 }}>Categories & Subcategories</h3>
                 <p style={{ margin: "0 0 18px", fontSize: 12, color: "#64748b" }}>Each category expands to show its subcategories.</p>
                 {currentUser?.role === "Admin" ? (
@@ -675,7 +675,7 @@ export function SettingsView(props) {
               </div>}
 
               {/* ✅ NEW: Locations Management */}
-              {settingsTab === "locations" && <div style={{ background: "#faf8f4", borderRadius: 12, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+              {settingsTab === "locations" && <div style={{ background: "#faf8f4", borderRadius: 4, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                 <h3 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700 }}>Locations ({locations.length})</h3>
                 <p style={{ margin: "0 0 18px", fontSize: 12, color: "#64748b" }}>Manage ticket and project locations/venues.</p>
                 {currentUser?.role === "Admin" ? (
@@ -729,7 +729,7 @@ export function SettingsView(props) {
                 {locations.length === 0 && <div style={{ textAlign: "center", color: "#94a3b8", padding: 28 }}>No locations yet. Add one to get started.</div>}
               </div>}
 
-              {settingsTab === "vendors" && <div style={{ background: "#faf8f4", borderRadius: 12, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+              {settingsTab === "vendors" && <div style={{ background: "#faf8f4", borderRadius: 4, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                 <h3 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700 }}>Vendors ({vendors.length})</h3>
                 <p style={{ margin: "0 0 18px", fontSize: 12, color: "#64748b" }}>Manage vendors with contact information for sending tickets.</p>
                 {currentUser?.role === "Admin" ? (
@@ -786,7 +786,7 @@ export function SettingsView(props) {
               </div>}
 
               {settingsTab === "bin" && false && (
-                <div style={{ background: "#faf8f4", borderRadius: 12, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                <div style={{ background: "#faf8f4", borderRadius: 4, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                   <h3 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700 }}>🧹 Bin</h3>
                   <p style={{ margin: "0 0 18px", fontSize: 12, color: "#64748b" }}>Manage deleted tickets and projects. Auto-deleted after 30 days.</p>
 
@@ -857,7 +857,7 @@ export function SettingsView(props) {
                 </div>
               )}
 
-              {settingsTab === "usermgmt" && <div style={{ background: "#faf8f4", borderRadius: 12, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+              {settingsTab === "usermgmt" && <div style={{ background: "#faf8f4", borderRadius: 4, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                 <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>User Management ({users.length} users)</h3>
                 {(currentUser?.role === "Admin") ? (
                   <div style={{ marginBottom: 18, display: "flex", justifyContent: "flex-end" }}>
@@ -929,7 +929,7 @@ export function SettingsView(props) {
                   ))}</tbody>
                 </table>
               </div></div>} 
-              {settingsTab === "customattrs" && <div style={{ background: "#faf8f4", borderRadius: 12, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+              {settingsTab === "customattrs" && <div style={{ background: "#faf8f4", borderRadius: 4, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                 <h3 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700 }}>Ticket Form</h3>
                 <p style={{ margin: "0 0 14px", fontSize: 12, color: "#64748b" }}>Add custom fields to the New Ticket form. After adding, configure placement in the layout designer.</p>
 
@@ -999,7 +999,7 @@ export function SettingsView(props) {
                   );
                 })}
               </div>}
-              {settingsTab === "dbmgmt" && <div style={{ background: "#faf8f4", borderRadius: 12, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+              {settingsTab === "dbmgmt" && <div style={{ background: "#faf8f4", borderRadius: 4, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                 <h3 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700 }}>Database Management</h3>
                 <p style={{ margin: "0 0 18px", fontSize: 12, color: "#64748b" }}>Export and import data from the database.</p>
 
@@ -1105,7 +1105,7 @@ export function SettingsView(props) {
                 />
               )}
               {settingsTab === "profile" && currentUser?.role === "Agent" && (
-                <div style={{ background: "#faf8f4", borderRadius: 12, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                <div style={{ background: "#faf8f4", borderRadius: 4, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                   <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>My Profile</h3>
                   {[
                     { l: "Name", v: currentUser.name },

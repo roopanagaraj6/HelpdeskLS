@@ -1666,7 +1666,7 @@ export function Modals(props) {
               {/* LEFT — New Ticket Preview */}
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Live Preview — New Ticket Form</div>
-                <div style={{ border: "2px solid #e2e8f0", borderRadius: 12, overflow: "hidden", background: "#f8fafc" }}>
+                <div style={{ border: "2px solid #e2e8f0", borderRadius: 4, overflow: "hidden", background: "#f8fafc" }}>
                   {/* Mock window bar */}
                   <div style={{ padding: "8px 12px", background: "#fff", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", gap: 6 }}>
                     <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#ef4444" }} />
@@ -1822,7 +1822,7 @@ export function Modals(props) {
       {/* ✅ NEW: Activity Log Modal */}
       {showActivityLog && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }}>
-          <div style={{ background: "#faf8f4", borderRadius: 12, width: "90%", maxWidth: 600, maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+          <div style={{ background: "#faf8f4", borderRadius: 4, width: "90%", maxWidth: 600, maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
             {/* Header */}
             <div style={{ padding: "20px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>📋 Activity Log</h2>
@@ -1867,7 +1867,7 @@ export function Modals(props) {
       {/* ✅ NEW: Session History Modal */}
       {showSessionHistory && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }}>
-          <div style={{ background: "#faf8f4", borderRadius: 12, width: "90%", maxWidth: 600, maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+          <div style={{ background: "#faf8f4", borderRadius: 4, width: "90%", maxWidth: 600, maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
             {/* Header */}
             <div style={{ padding: "20px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>⏱️ Session History</h2>
@@ -1972,7 +1972,7 @@ export function Modals(props) {
 
       {restoreModal.show && (
             <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }}>
-              <div style={{ background: "#faf8f4", borderRadius: 12, width: 440, padding: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+              <div style={{ background: "#faf8f4", borderRadius: 4, width: 440, padding: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
                 <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700 }}>🔄 Restore Ticket</h3>
                 <p style={{ margin: "0 0 16px", fontSize: 12, color: "#64748b" }}>
                   Restoring <strong>{restoreModal.ticket?.id}</strong> to its previous status:&nbsp;
@@ -2005,7 +2005,7 @@ export function Modals(props) {
           )}
          {agentDetailModal.show && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }}>
-          <div style={{ background: "#faf8f4", borderRadius: 12, width: 360, padding: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+          <div style={{ background: "#faf8f4", borderRadius: 4, width: 360, padding: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#0f172a" }}>🟦 {agentDetailModal.user?.name} — On Ticket</h3>
               <button onClick={() => setAgentDetailModal({ show: false, user: null })} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#94a3b8" }}>×</button>

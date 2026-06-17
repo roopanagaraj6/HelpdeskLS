@@ -13,7 +13,7 @@ const shimmerKeyframes = `@keyframes shimmer { 0%{background-position:200% 0} 10
 
 function StatCardSkeleton() {
   return (
-    <div style={{ background: "#f8fafc", borderRadius: 12, padding: "16px", boxShadow: "0 2px 6px rgba(0,0,0,0.07)", borderLeft: "5px solid #e2e8f0" }}>
+    <div style={{ background: "#f8fafc", borderRadius: 4, padding: "16px", boxShadow: "0 2px 6px rgba(0,0,0,0.07)", borderLeft: "5px solid #e2e8f0" }}>
       <div style={{ ...shimmerStyle, height: 14, width: "40%", marginBottom: 10 }} />
       <div style={{ ...shimmerStyle, height: 32, width: "60%", marginBottom: 8 }} />
       <div style={{ ...shimmerStyle, height: 10, width: "50%" }} />
@@ -23,9 +23,9 @@ function StatCardSkeleton() {
 
 function ChartSkeleton({ height = 300 }) {
   return (
-    <div style={{ background: "#fff", borderRadius: 12, padding: 18, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", height }}>
+    <div style={{ background: "#fff", borderRadius: 4, padding: 18, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", height }}>
       <div style={{ ...shimmerStyle, height: 14, width: "40%", marginBottom: 16 }} />
-      <div style={{ ...shimmerStyle, height: height - 60, borderRadius: 8 }} />
+      <div style={{ ...shimmerStyle, height: height - 60, borderRadius: 3 }} />
     </div>
   );
 }
@@ -96,7 +96,7 @@ export function DashboardView(props) {
                   { label: "Total", value: dashboardStats.total, bg: "#dbeafe", accent: "#3b82f6", icon: "", action: () => { switchView("tickets"); setTvFilter("all"); setStatusF("All"); setPriorityF("All"); setTicketDateFrom(getDateFrom()); } },
                   ...((currentUser?.role === "Admin" || currentUser?.role === "Manager") ? [{ label: "Reopened", value: dashboardStats.reopened, bg: "#fff7ed", accent: "#f97316", icon: "", action: () => { switchView("tickets"); setTvFilter("reopened"); setFilterStatus([]); setPriorityF("All"); setTicketDateFrom(""); } }] : []),
                 ].map(s => (
-                  <div key={s.label} onClick={s.action} style={{ background: s.bg, borderRadius: 12, padding: "16px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.1)", borderLeft: `5px solid ${s.accent}`, cursor: "pointer", transition: "all 0.2s ease" }}
+                  <div key={s.label} onClick={s.action} style={{ background: s.bg, borderRadius: 4, padding: "16px 16px", boxShadow: "0 2px 6px rgba(0,0,0,0.1)", borderLeft: `5px solid ${s.accent}`, cursor: "pointer", transition: "all 0.2s ease" }}
                     onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.15)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
                     onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.1)"; e.currentTarget.style.transform = "translateY(0)"; }}>
                     <div style={{ fontSize: 20, marginBottom: 6 }}>{s.icon}</div>
@@ -122,7 +122,7 @@ export function DashboardView(props) {
 
                   {/* Row 2: Category Breakdown + Closures by Person */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-                    <div style={{ background: "#fff", borderRadius: 12, padding: 18, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                    <div style={{ background: "#fff", borderRadius: 4, padding: 18, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Category Breakdown</div>
                         <button onClick={() => setCatBreakdownExpanded(v => !v)} style={{ fontSize: 11, fontWeight: 600, color: "#3b82f6", background: "none", border: "none", cursor: "pointer", padding: 0 }}>{catBreakdownExpanded ? "Show Less ↑" : "View All ↓"}</button>
@@ -130,7 +130,7 @@ export function DashboardView(props) {
                       {dashboardStatsLoading ? <div style={{ ...shimmerStyle, height: 200, borderRadius: 8 }} /> : <HorizontalBarChart data={categoryDistFull} maxItems={catBreakdownExpanded ? undefined : 10} />
 }
                     </div>
-                    <div style={{ background: "#fff", borderRadius: 12, padding: 18, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                    <div style={{ background: "#fff", borderRadius: 4, padding: 18, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Closures by Person</div>
                         <button onClick={() => setClosuresByPersonExpanded(v => !v)} style={{ fontSize: 11, fontWeight: 600, color: "#3b82f6", background: "none", border: "none", cursor: "pointer", padding: 0 }}>{closuresByPersonExpanded ? "Show Less ↑" : "View All ↓"}</button>
@@ -142,7 +142,7 @@ export function DashboardView(props) {
 
                   {/* Row 3: Assignments by Person (open/closed stacked) */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12, marginBottom: 12 }}>
-                    <div style={{ background: "#fff", borderRadius: 12, padding: 18, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                    <div style={{ background: "#fff", borderRadius: 4, padding: 18, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Assignments by Person</div>
                         <button onClick={() => setAssignmentsByPersonExpanded(v => !v)} style={{ fontSize: 11, fontWeight: 600, color: "#3b82f6", background: "none", border: "none", cursor: "pointer", padding: 0 }}>{assignmentsByPersonExpanded ? "Show Less ↑" : "View All ↓"}</button>
@@ -183,7 +183,7 @@ export function DashboardView(props) {
 
                   {/* Recent Tickets for Admin/Manager */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
-                    <div style={{ background: "#faf8f4", borderRadius: 12, padding: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                    <div style={{ background: "#faf8f4", borderRadius: 4, padding: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                       <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10, color: "#374151" }}>Recent Tickets</div>
                       {(currentUser?.role === "Admin" || currentUser?.role === "Manager" ? tickets : tickets.filter(t => t.reportedBy === currentUser?.name || (Array.isArray(t.assignees) ? t.assignees : []).some(a => a.id === currentUser?.id))).slice(0, 10).map(t => (
                         <div key={t.id} onClick={() => setSelTicket(t)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px", borderRadius: 8, cursor: "pointer", border: "1px solid #f1f5f9", marginBottom: 5 }}>
@@ -199,14 +199,14 @@ export function DashboardView(props) {
                 <>
                   {/* Viewer/Agent: 2 charts side by side */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-                    <div style={{ background: "#fff", borderRadius: 12, padding: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                    <div style={{ background: "#fff", borderRadius: 4, padding: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                       <SmartChart title="Daily Ticket count (Over a Week)" data={dashboardDailyData} defaultColor="#3b82f6" size="small" hideTotal defaultType="hbar" />
                     </div>
-                    <div style={{ background: "#fff", borderRadius: 12, padding: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                    <div style={{ background: "#fff", borderRadius: 4, padding: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                       <SmartChart title="Priority Distribution" data={priorityDist} defaultType="pie" size="small" />
                     </div>
                   </div>
-                  <div style={{ background: "#faf8f4", borderRadius: 12, padding: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginTop: 12 }}>
+                  <div style={{ background: "#faf8f4", borderRadius: 4, padding: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginTop: 12 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10, color: "#374151" }}>My Recent Tickets</div>
                     {tickets.filter(t => t.assignees?.some(a => a.id === currentUser?.id || a.name === currentUser?.name)).slice(0, 10).map(t => (
                       <div key={t.id} onClick={() => setSelTicket(t)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px", borderRadius: 8, cursor: "pointer", border: "1px solid #f1f5f9", marginBottom: 5 }}>

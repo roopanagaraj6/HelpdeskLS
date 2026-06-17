@@ -57,7 +57,7 @@ export function ProjectsView(props) {
   const projFilterCategoryRef = React.useRef(null);
   const projFilterPriorityRef = React.useRef(null);
 
-  return <div style={{ background: "#faf8f4", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
+  return <div style={{ background: "#faf8f4", borderRadius: 4, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
 
             {/* Project action bar */}
             <div style={{ padding: "11px 14px", borderBottom: "1px solid #f1f5f9", display: "flex", gap: 9, alignItems: "center", flexWrap: "wrap" }}>
