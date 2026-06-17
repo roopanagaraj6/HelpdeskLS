@@ -628,6 +628,32 @@ export function Modals(props) {
                 </label>
               )}
             </div>
+            {customAttrs && customAttrs.length > 0 && (
+              <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }}>
+                {customAttrs.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map(a => {
+                  const val = (editTicket.customAttrs || {})[a.name];
+                  return (
+                    <div key={a.id}>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
+                        {a.name}{a.required && <span style={{ color: "#ef4444" }}> *</span>}
+                      </label>
+                      {a.type === "select"
+                        ? <select style={{ ...iS, width: "100%", fontSize: 13 }} value={val || ""} onChange={e => setEditTicket({ ...editTicket, customAttrs: { ...(editTicket.customAttrs || {}), [a.name]: e.target.value } })}>
+                            <option value="">Select…</option>
+                            {(a.options || []).map(o => <option key={o}>{o}</option>)}
+                          </select>
+                        : a.type === "checkbox"
+                          ? <label style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13 }}>
+                              <input type="checkbox" checked={!!val} onChange={e => setEditTicket({ ...editTicket, customAttrs: { ...(editTicket.customAttrs || {}), [a.name]: e.target.checked } })} />
+                              {a.name}
+                            </label>
+                          : <input type={a.type === "date" ? "date" : "text"} style={{ ...iS, width: "100%", fontSize: 13 }} value={val || ""} onChange={e => setEditTicket({ ...editTicket, customAttrs: { ...(editTicket.customAttrs || {}), [a.name]: e.target.value } })} />
+                      }
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             </>
           ) : (
             /* ── VIEW MODE ── */
@@ -673,8 +699,8 @@ export function Modals(props) {
             </div>
           )}
 
-          {selTicket.customAttrs && Object.keys(typeof selTicket.customAttrs === "string" ? JSON.parse(selTicket.customAttrs) : selTicket.customAttrs).length > 0 && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 14 }}>
-            {Object.entries(typeof selTicket.customAttrs === "string" ? JSON.parse(selTicket.customAttrs) : selTicket.customAttrs).map(([k, v]) => <div key={k} style={{ background: "#fffbeb", padding: "9px 13px", borderRadius: 9, border: "1px solid #fde68a" }}><div style={{ fontSize: 10, fontWeight: 600, color: "#92400e", textTransform: "uppercase", marginBottom: 3 }}>{k}</div><div style={{ fontSize: 13, fontWeight: 500 }}>{String(v) || "-"}</div></div>)}
+          {!editMode && selTicket.customAttrs && Object.keys(typeof selTicket.customAttrs === "string" ? JSON.parse(selTicket.customAttrs) : selTicket.customAttrs).length > 0 && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 14 }}>
+            {Object.entries(typeof selTicket.customAttrs === "string" ? JSON.parse(selTicket.customAttrs) : selTicket.customAttrs).map(([k, v]) => <div key={k} style={{ background: "#f8fafc", padding: "9px 13px", borderRadius: 9}}><div style={{ fontSize: 10, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", marginBottom: 3 }}>{k}</div><div style={{ fontSize: 13, fontWeight: 500 }}>{String(v) || "-"}</div></div>)}
           </div>}
           <div style={{ marginBottom: 14, padding: "11px 13px", background: "#f8fafc", borderRadius: 9 }}>
             <div style={{ fontSize: 10, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", marginBottom: 7 }}>Assignees</div>

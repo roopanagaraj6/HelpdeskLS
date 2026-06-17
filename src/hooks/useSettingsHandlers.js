@@ -389,7 +389,7 @@ export function useSettingsHandlers(ctx) {
       onConfirm: async () => {
         try {
           await axios.delete(`${CUSTOM_ATTRS_API}/${id}`);
-          setCustomAttrs(customAttrs.filter(a => a.id !== id));
+          setCustomAttrs(prev => prev.filter(a => a.id !== id));
           setCustomAlert({ show: true, message: "✅ Attribute deleted!", type: "success" });
         } catch (err) {
           console.error("Error deleting attribute:", err);
