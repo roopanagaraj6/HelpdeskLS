@@ -314,6 +314,7 @@ app.use((req, res, next) => {
   if (url.includes("/locations")) cacheDel("static:locations", "alldata");
   if (url.includes("/vendors"))   cacheDel("static:vendors", "alldata");
   if (url.includes("/users"))     cacheDel("static:users", "alldata", "stats:");
+  if (url.includes("/customAttrs"))cacheDel("alldata");
   if (url.includes("/all-data"))  cacheDel("alldata");
   next();
 });
