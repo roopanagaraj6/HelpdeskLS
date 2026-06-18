@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import { SmartChart, HorizontalBarChart } from "../components/Charts";
 import { Avatar } from "../components/UIComponents";
-import { PRIORITIES, PROJECT_PRIORITIES, STATUSES, PROJECT_STATUSES } from "../constants/constants";
+import { PRIORITIES, STATUSES } from "../constants/constants";
 import { exportCSV, exportJSON, exportPrint } from "../utils/exportHelpers";
 import { BASE_URL } from "../constants/api";
 
@@ -47,15 +47,6 @@ export function ReportsView(props) {
                 { key: "closedAt", label: "Closed Date" },
                 { key: "closedBy", label: "Closed By" },
               ],
-              projects: [
-                { key: "id", label: "ID" }, { key: "title", label: "Title" },
-                { key: "status", label: "Status" }, { key: "priority", label: "Priority" },
-                { key: "category", label: "Category" }, { key: "org", label: "Organization" },
-                { key: "department", label: "Department" }, { key: "reportedBy", label: "Reported By" },
-                { key: "assignees", label: "Assignees" }, { key: "progress", label: "Progress" },
-                { key: "dueDate", label: "Due Date" }, { key: "createdAt", label: "Created" },
-                { key: "closedAt", label: "Closed Date" },{ key: "closedBy", label: "Closed By" },
-              ],
             };
             
             const ALWAYS_EXCLUDE = ["department", "contact", "reportedBy", "location","updatedAt","closedBy","closedAt"];
@@ -64,10 +55,6 @@ export function ReportsView(props) {
                 Open: ALL_COLUMNS.tickets.filter(c => !["reportedBy","closedAt","contact","department","location","updatedAt","closedBy","closedAt"].includes(c.key)).map(c => c.key),
                 Closed: ALL_COLUMNS.tickets.filter(c => !["reportedBy","createdAt","updatedAt","dueDate","department","location","contact"].includes(c.key)).map(c => c.key),
               },
-              projects: {
-                Open: ALL_COLUMNS.projects.filter(c => !["reportedBy","closedAt","contact","department","location"].includes(c.key)).map(c => c.key),
-                Closed: ALL_COLUMNS.projects.filter(c => !["reportedBy","createdAt","updatedAt","dueDate","department","location","contact"].includes(c.key)).map(c => c.key),
-              },
             };
             const getDefaultCols = (src, statuses) => {
               const s = statuses.length === 1 ? statuses[0] : null;
@@ -75,7 +62,7 @@ export function ReportsView(props) {
               return ALL_COLUMNS[src].filter(c => !ALWAYS_EXCLUDE.includes(c.key)).map(c => c.key);
             };
             const availableCols = ALL_COLUMNS[reportFilters.dataSource] || ALL_COLUMNS.tickets;
-            const sourceData = reportFilters.dataSource === "projects" ? prbr : fbr;
+            const sourceData = fbr;
 
             const getClosedDate = (row) => {
               if (row.closedAt) return new Date(row.closedAt);
@@ -372,7 +359,7 @@ export function ReportsView(props) {
                       <div>
                         <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 6 }}>DATA SOURCE</label>
                         <div style={{ display: "flex", gap: 8 }}>
-                          {["tickets", "projects"].map(s => chip(s.charAt(0).toUpperCase() + s.slice(1), reportFilters.dataSource === s, () => setReportFilters(f => ({ ...f, dataSource: s, status: [], priority: [], category: [], org: dashboardOrg === "all" ? "" : dashboardOrg, columns: getDefaultCols(s, []) }))))}
+                          {chip("Tickets", reportFilters.dataSource === "tickets", () => setReportFilters(f => ({ ...f, dataSource: "tickets", status: [], priority: [], category: [], org: dashboardOrg === "all" ? "" : dashboardOrg, columns: getDefaultCols("tickets", []) })))}
                         </div>
                       </div>
                       {/* Date Range */}
@@ -395,7 +382,7 @@ export function ReportsView(props) {
                       <div>
                         <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 6 }}>STATUS</label>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                          {(reportFilters.dataSource === "projects" ? PROJECT_STATUSES : STATUSES).filter(s => s !== "Bin").map(s => chip(s, reportFilters.status[0] === s, () => {
+                          {STATUSES.filter(s => s !== "Bin").map(s => chip(s, reportFilters.status[0] === s, () => {
                             const newStatus = reportFilters.status[0] === s ? [] : [s];
                             setReportFilters(f => ({ ...f, status: newStatus, columns: getDefaultCols(f.dataSource, newStatus) }));
                           }))}
@@ -406,7 +393,7 @@ export function ReportsView(props) {
                         <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 6 }}>PRIORITY</label>
                         <select value={reportFilters.priority[0] || ""} onChange={e => setReportFilters(f => ({ ...f, priority: e.target.value ? [e.target.value] : [] }))} style={{ width: "100%", padding: "7px 10px", border: "1px solid #e2e8f0", borderRadius: 7, fontSize: 13, background: "#fff", color: "#334155" }}>
                           <option value="">All Priorities</option>
-                          {(reportFilters.dataSource === "projects" ? PROJECT_PRIORITIES : PRIORITIES).map(p => <option key={p} value={p}>{p}</option>)}
+                          {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
                         </select>
                       </div>
                       <div style={{ position: "relative" }}>

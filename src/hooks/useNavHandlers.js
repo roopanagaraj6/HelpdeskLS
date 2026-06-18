@@ -76,7 +76,7 @@ export function useNavHandlers(ctx) {
 
         // ── PROJECT EVENTS ──
         case "project_created":
-          switchView("projects");
+          //switchView("projects");
           break;
 
         // ── SETTINGS EVENTS (Department, Category, Organization, Location, Vendor, User) ──
@@ -217,13 +217,11 @@ export function useNavHandlers(ctx) {
   const sideNav = (currentUser?.role === "Admin" || currentUser?.role === "Manager") ? [
   { id: "dashboard", label: "Dashboard", icon: "🏠" },
   { id: "tickets", label: "All Tickets", icon: "📝" },
-  { id: "projects", label: "All Projects", icon: "📁" },
   { id: "reports", label: "Reports", icon: "📊" },
   { id: "settings", label: "Settings", icon: "⚙️" },
   ] : [
   { id: "dashboard", label: "Dashboard", icon: "🏠" },
   { id: "tickets", label: "All Tickets", icon: "📝" },
-  { id: "projects", label: "All Projects", icon: "📁" },
   { id: "settings", label: "Settings", icon: "⚙️" },
   ];
   const stabs = currentUser?.role === "Admin" ? [
@@ -248,7 +246,6 @@ export function useNavHandlers(ctx) {
   const getPageTitle = () => {
     if (view === "dashboard") return "Dashboard";
     if (view === "tickets") return cvd.label;
-    if (view === "projects") return cpv.label;
     if (view === "webcast") return "Webcast";
     if (view === "reports") return "Reports";
     if (view === "settings") return "Settings";

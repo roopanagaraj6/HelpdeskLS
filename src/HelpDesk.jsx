@@ -9,9 +9,8 @@ import {
 } from "./constants/api";
 import {
   PRIORITIES, STATUSES, ROLES, SATSANG_TYPES,
-  PROJECT_STATUSES, PROJECT_PRIORITIES,
   PRIORITY_COLOR, STATUS_COLOR, ITEM_COLORS, getItemColor,
-  TICKET_VIEWS, PROJECT_VIEWS,
+  TICKET_VIEWS,
   iS, sS, bP, bG,
 } from "./constants/constants";
 
@@ -42,7 +41,6 @@ import { useNavHandlers } from "./hooks/useNavHandlers";
 import { DashboardView } from "./views/DashboardView";
 import { TicketsView } from "./views/TicketsView";
 import { AlertsView } from "./views/AlertsView";
-import { ProjectsView } from "./views/ProjectsView";
 import { WebcastView } from "./views/WebcastView";
 import { ReportsView } from "./views/ReportsView";
 import { BinView } from "./views/BinView";
@@ -1443,7 +1441,6 @@ export default function HelpDesk() {
   const isPrivilegedRole = currentUser?.role === "Admin" || currentUser?.role === "Manager";
   const effectiveTvFilter = (tvFilter === "unassigned" && !isPrivilegedRole) ? "all" : tvFilter;
   const cvd = TICKET_VIEWS.find(v => v.id === effectiveTvFilter) || TICKET_VIEWS[6];
-  const cpv = PROJECT_VIEWS.find(v => v.id === pvFilter) || PROJECT_VIEWS[5];
 
   // A ticket is a webcast if category === "Webcast" or isWebcast === true
   const isTrueWebcast = (t) =>
@@ -1524,7 +1521,7 @@ export default function HelpDesk() {
     tickets, setTickets, filtered, departments,
     ticketCategories, setTicketCategories,
     loadData,
-    view, cvd, cpv,
+    view, cvd,
     projects, setProjects,
     users, setUsers, orgs, setOrgs,
     categories, setCategories, customAttrs, setCustomAttrs,
@@ -1605,45 +1602,6 @@ export default function HelpDesk() {
 
   // Paginate the sorted list
   const currentTickets = allSortedTickets;
-
-  const filteredProjects = useMemo(() => projects.filter(p => {
-    if (!currentUser || !cpv.filter(p, currentUser)) return false;
-    // Agents and Viewers only see projects they are assigned to
-    if (currentUser.role === "Agent" || currentUser.role === "Viewer") {
-      if (!p.assignees?.some(a => a.id === currentUser.id)) return false;
-    }
-    if (projStatusF !== "All" && p.status !== projStatusF) return false;
-    if (projPriorityF !== "All" && p.priority !== projPriorityF) return false;
-    if (projFilterStatus.length > 0) {
-      const sp = projFilterStatus.some(f => {
-        if (f === "open") return p.status === "Open";
-        if (f === "closed") return p.status === "Closed";
-        if (f === "pastdue") { const due = p.dueDate && new Date(p.dueDate); const today = new Date(); today.setHours(0,0,0,0); return p.status === "Open" && due && due < today; }
-        return false;
-      });
-      if (!sp) return false;
-    }
-    if (projFilterAssignment.length > 0) {
-      const ap = projFilterAssignment.some(f => {
-        if (f === "assigned") return p.assignees && p.assignees.length > 0;
-        if (f === "unassigned") return !p.assignees || p.assignees.length === 0;
-        return false;
-      });
-      if (!ap) return false;
-    }
-    if (projFilterAssignee.length > 0) {
-      if (!p.assignees?.some(a => projFilterAssignee.includes(a.name))) return false;
-    }
-    if (projFilterCategory.trim()) {
-      if (!p.category?.toLowerCase().includes(projFilterCategory.toLowerCase())) return false;
-    }
-    if (projFilterPriority !== "All" && p.priority !== projFilterPriority) return false;
-    if (dashboardOrg !== "all" && p.org !== dashboardOrg) return false;
-    if (projSearch && !p.title.toLowerCase().includes(projSearch.toLowerCase()) && !p.id.toLowerCase().includes(projSearch.toLowerCase()) && !p.org.toLowerCase().includes(projSearch.toLowerCase())) return false;
-    return true;
-  }), [projects, cpv, currentUser, dashboardOrg, projStatusF, projPriorityF, projSearch, projFilterStatus, projFilterAssignment, projFilterAssignee, projFilterCategory, projFilterPriority]);
-
-
   const stats = useMemo(() => ({ total: fbr.length, open: fbr.filter(x => x.status === "Open").length, closed: fbr.filter(x => x.status === "Closed").length, critical: fbr.filter(x => x.priority === "Critical").length }), [fbr]);
 
   const [dashboardStatsMap, setDashboardStatsMap] = useState({ priority: [], category: [], daily: [], assignedUsers: {} });
@@ -2478,7 +2436,6 @@ export default function HelpDesk() {
         {/* New Ticket / Project buttons */}
         <div style={{ padding: "8px 8px 10px", display: "flex", flexDirection: "column", gap: 5 }}>
           <button onClick={() => { setForm({ ...emptyForm(), org: dashboardOrg !== "all" ? dashboardOrg : "" }); setShowNewTicket(true); }} style={{ width: "100%", padding: "8px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#3b82f6,#6366f1)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>+ New Ticket</button>
-          <button onClick={() => { setProjForm({ ...emptyProjectForm, org: dashboardOrg !== "all" ? dashboardOrg : "" }); setShowNewProject(true); }} style={{ width: "100%", padding: "8px", borderRadius: 9, border: "1.5px solid #1e40af", background: "transparent", color: "#60a5fa", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: (currentUser?.role === "Admin" || currentUser?.role === "Manager") ? "block" : "none" }}>+ New Project</button>
         </div>
 
         {/* Profile section (v1 full profile panel) */}
@@ -3045,7 +3002,6 @@ export default function HelpDesk() {
             <div>
             <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{getPageTitle()}</h1>
             {view === "tickets" && <p style={{ margin: 0, fontSize: 11, color: "#94a3b8" }}>{cvd.desc}</p>}
-            {view === "projects" && <p style={{ margin: 0, fontSize: 11, color: "#94a3b8" }}>{cpv.desc}</p>}
             </div>
           </div>
           <div style={{ display: "flex", gap: 9, alignItems: "center" }}>
@@ -3297,61 +3253,7 @@ export default function HelpDesk() {
               rejectInboxForwardRequest={rejectInboxForwardRequest}
             />
           )}
-
-          {/* ── PROJECTS ── */}
-          {view === "projects" && (
-            <ProjectsView
-              projects={projects} users={users} orgs={orgs}
-              categories={categories} currentUser={currentUser}
-              filteredProjects={filteredProjects}
-              pvFilter={pvFilter} setPvFilter={setPvFilter}
-              projFilters={projFilters} setProjFilters={setProjFilters}
-              projPage={projPage} setProjPage={setProjPage}
-              projSort={projSort} setProjSort={setProjSort}
-              activeProjFilterDD={activeProjFilterDD} setActiveProjFilterDD={setActiveProjFilterDD}
-              showProjExportDD={showProjExportDD} setShowProjExportDD={setShowProjExportDD}
-              showProjColExport={showProjColExport} setShowProjColExport={setShowProjColExport}
-              projExportCols={projExportCols} setProjExportCols={setProjExportCols}
-              projExportMode={projExportMode} setProjExportMode={setProjExportMode}
-              showProjColPicker={showProjColPicker} setShowProjColPicker={setShowProjColPicker}
-              visibleProjCols={visibleProjCols} setVisibleProjCols={setVisibleProjCols}
-              updateProjectStatus={updateProjectStatus} deleteProject={deleteProject}
-              setSelProject={setSelProject} setShowNewProject={setShowNewProject}
-              handleExport={handleExport}
-              setProjForm={setProjForm}
-              emptyProjectForm={emptyProjectForm}
-              dashboardOrg={dashboardOrg}
-              getProgressFromStatus={getProgressFromStatus}
-              setConfirmModal={setConfirmModal}
-              setCustomAlert={setCustomAlert}
-              setProjects={setProjects}
-              projSearch={projSearch} setProjSearch={setProjSearch}
-              projFilterStatus={projFilterStatus} setProjFilterStatus={setProjFilterStatus}
-              projFilterAssignment={projFilterAssignment} setProjFilterAssignment={setProjFilterAssignment}
-              projFilterAssignee={projFilterAssignee} setProjFilterAssignee={setProjFilterAssignee}
-              projFilterAssigneeSearch={projFilterAssigneeSearch} setProjFilterAssigneeSearch={setProjFilterAssigneeSearch}
-              projFilterCategory={projFilterCategory} setProjFilterCategory={setProjFilterCategory}
-              projFilterCategorySearch={projFilterCategorySearch} setProjFilterCategorySearch={setProjFilterCategorySearch}
-              projFilterPriority={projFilterPriority} setProjFilterPriority={setProjFilterPriority}
-            />
-          )}
-
-          {/* ── WEBCAST ── */}
-          {view === "webcast" && (
-            <WebcastView
-              tickets={tickets} users={users} currentUser={currentUser}
-              webcastFilter={webcastFilter} setWebcastFilter={setWebcastFilter}
-              webcastSort={webcastSort} setWebcastSort={setWebcastSort}
-              webcastPage={webcastPage} setWebcastPage={setWebcastPage}
-              setSelTicket={setSelTicket} setShowRemarkModal={setShowRemarkModal}
-              setClosingTicketId={setClosingTicketId}
-              setPendingTicketStatus={setPendingTicketStatus}
-              updateStatus={updateStatus} deleteTicket={deleteTicket}
-              setShowNewTicket={setShowNewTicket}
-              thStyle={thStyle} tdStyle={tdStyle}
-            />
-          )}
-
+          
           {/* ── REPORTS ── */}
           {view === "reports" && (
             <ReportsView
@@ -3499,7 +3401,6 @@ export default function HelpDesk() {
   addCC={addCC}
   updateStatusDirect={updateStatusDirect}
   PRIORITY_COLOR={PRIORITY_COLOR} STATUS_COLOR={STATUS_COLOR} Badge={Badge}
-  PROJECT_STATUSES={PROJECT_STATUSES} PROJECT_PRIORITIES={PROJECT_PRIORITIES}
   TICKETS_API={TICKETS_API} PROJECTS_API={PROJECTS_API} NOTIFICATIONS_API={NOTIFICATIONS_API}
   ticketImage={ticketImage}
   setTicketImage={setTicketImage}

@@ -3,8 +3,7 @@ import axios from "axios";
 import { BASE_URL } from "../constants/api";
 
 import { Modal, FF, Avatar, ConfirmationModal } from "../components/UIComponents";
-import { PRIORITIES, STATUSES, iS, sS, bP, bG } from "../constants/constants";
-
+import { PRIORITIES, STATUSES, PROJECT_STATUSES, PROJECT_PRIORITIES, iS, sS, bP, bG } from "../constants/constants";
 /**
  * All application modal dialogs:
  * NewTicket, NewProject, TicketDetail, ProjectDetail,
@@ -173,7 +172,7 @@ export function Modals(props) {
     addDailyNotif,
     setCustomAlert,
     PRIORITY_COLOR, STATUS_COLOR, Badge,
-    STATUSES, PROJECT_STATUSES, PROJECT_PRIORITIES,
+    STATUSES,
     TICKETS_API, PROJECTS_API, NOTIFICATIONS_API,
     ProgressBar,
     getProgressFromStatus,
