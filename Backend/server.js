@@ -280,6 +280,7 @@ const ScheduledTask = sequelize.define("ScheduledTask", {
     reportedBy:  { type: DataTypes.STRING, defaultValue: "" },
     frequency: { type: DataTypes.ENUM("daily","weekly","biweekly","monthly","quarterly","halfyearly","yearly"), defaultValue: "weekly" },
     dayOfWeek:   { type: DataTypes.INTEGER, defaultValue: 1 },
+    daysOfWeek:  { type: DataTypes.JSON, defaultValue: [1, 4] },
     dayOfMonth:  { type: DataTypes.INTEGER, defaultValue: 1 },
     timeOfDay:   { type: DataTypes.STRING, defaultValue: "09:00" },
     active:      { type: DataTypes.BOOLEAN, defaultValue: true },
@@ -2029,11 +2030,19 @@ sequelize.sync({ alter: true }).then(async () => {
     // Data Migration: Extend ScheduledTasks frequency ENUM
     try {
         await sequelize.query(
-            `ALTER TABLE ScheduledTasks MODIFY COLUMN frequency ENUM('daily','weekly','biweekly','monthly','quarterly','halfyearly','yearly') NOT NULL DEFAULT 'weekly'`
+            `ALTER TABLE ScheduledTasks MODIFY COLUMN frequency ENUM('daily','weekly','biweekly','triweekly','monthly','quarterly','halfyearly','yearly') NOT NULL DEFAULT 'weekly'`
         );
         console.log("✅ ScheduledTasks frequency ENUM migrated");
     } catch (e) { console.warn("⚠️ frequency ENUM migration:", e.message); }
     
+    // Data Migration: Add daysOfWeek column to ScheduledTasks
+    try {
+        await sequelize.query(
+            `ALTER TABLE ScheduledTasks ADD COLUMN daysOfWeek JSON DEFAULT NULL`
+        );
+        console.log("✅ ScheduledTasks daysOfWeek column added");
+    } catch (e) { console.warn("⚠️ daysOfWeek column migration:", e.message); }
+
     // Data Migration: Backfill orgName = "General" for old departments missing it
     try {
         const [deptCount] = await sequelize.query(
@@ -2087,6 +2096,18 @@ function calcNextRun(task, fromDate) {
         if (next <= now) next.setDate(next.getDate() + 7);
     } else if (task.frequency === "biweekly") {
         const targets = (task.daysOfWeek && task.daysOfWeek.length === 2) ? task.daysOfWeek : [1, 4];
+        let best = null;
+        for (const target of targets) {
+            let days = (7 + target - now.getDay()) % 7;
+            const candidate = new Date(now);
+            candidate.setDate(candidate.getDate() + days);
+            candidate.setHours(hh, mm, 0, 0);
+            if (candidate <= now) candidate.setDate(candidate.getDate() + 7);
+            if (!best || candidate < best) best = candidate;
+        }
+        return istToUtc(best);
+    } else if (task.frequency === "triweekly") {
+        const targets = (task.daysOfWeek && task.daysOfWeek.length === 3) ? task.daysOfWeek : [1, 3, 5];
         let best = null;
         for (const target of targets) {
             let days = (7 + target - now.getDay()) % 7;

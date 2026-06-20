@@ -12,7 +12,7 @@ import { BASE_URL, ORGS_API, CATEGORIES_API, LOCATIONS_API, VENDORS_API } from "
 
 // --- Scheduled Tasks Tab Component ---
 const SCHED_DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-const FREQ_LABELS = { daily: "Daily", weekly: "Weekly", biweekly: "Bi-Weekly", monthly: "Monthly", quarterly: "Quarterly", halfyearly: "Half-Yearly", yearly: "Yearly" };
+const FREQ_LABELS = { daily: "Daily", weekly: "Weekly", biweekly: "Bi-Weekly", triweekly: "Tri-Weekly", monthly: "Monthly", quarterly: "Quarterly", halfyearly: "Half-Yearly", yearly: "Yearly" };
 
 function ScheduledTasksTab({ currentUser, orgs, categories, users, locations, departments, setCustomAlert }) {
   const [tasks, setTasks] = React.useState([]);
@@ -38,7 +38,7 @@ startDate: "", endDate: "",
   }, []);
 
   const openAdd = () => { setForm(emptyForm()); setEditTask(null); setShowModal(true); };
-  const openEdit = (t) => { setForm({ ...t, daysOfWeek: t.daysOfWeek && t.daysOfWeek.length ? t.daysOfWeek : [1, 4], startDate: t.startDate || "", endDate: t.endDate || "" }); setEditTask(t); setShowModal(true); };
+  const openEdit = (t) => { setForm({ ...t, daysOfWeek: Array.isArray(t.daysOfWeek) ? t.daysOfWeek : (t.frequency === "triweekly" ? [1, 3, 5] : [1, 4]), startDate: t.startDate || "", endDate: t.endDate || "" }); setEditTask(t); setShowModal(true); };
 
   const save = async () => {
     if (!form.name.trim()) return setCustomAlert({ show: true, message: "Task name is required", type: "error" });
@@ -130,6 +130,7 @@ startDate: "", endDate: "",
                     &#128336; {t.timeOfDay}
                     {t.frequency === "weekly" && " every " + (SCHED_DAYS[t.dayOfWeek] || "")}
                     {t.frequency === "biweekly" && " twice/week on " + (t.daysOfWeek || []).map(d => SCHED_DAYS[d]).join(" & ")}
+                    {t.frequency === "triweekly" && " thrice/week on " + (t.daysOfWeek || []).map(d => SCHED_DAYS[d]).join(", ")}
                     {t.frequency === "monthly" && " on day " + t.dayOfMonth + " of month"}
                     {t.frequency === "quarterly" && " on day " + t.dayOfMonth + " of quarter"}
                     {t.frequency === "halfyearly" && " on day " + t.dayOfMonth + " of half-year"}
@@ -170,10 +171,17 @@ startDate: "", endDate: "",
               <div style={{ fontSize: 12, fontWeight: 700, color: "#0369a1", marginBottom: 12 }}>Schedule</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 14px" }}>
                 <FF label="Frequency">
-                  <select style={sS} value={form.frequency} onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))}>
+                  <select style={sS} value={form.frequency} onChange={e => setForm(f => {
+                    const freq = e.target.value;
+                    let daysOfWeek = f.daysOfWeek;
+                    if (freq === "biweekly" && (!daysOfWeek || daysOfWeek.length !== 2)) daysOfWeek = [1, 4];
+                    if (freq === "triweekly" && (!daysOfWeek || daysOfWeek.length !== 3)) daysOfWeek = [1, 3, 5];
+                    return { ...f, frequency: freq, daysOfWeek };
+                  })}>
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
                     <option value="biweekly">Bi-Weekly</option>
+                    <option value="triweekly">Tri-Weekly</option>
                     <option value="monthly">Monthly</option>
                     <option value="quarterly">Quarterly</option>
                     <option value="halfyearly">Half-Yearly</option>
@@ -211,7 +219,33 @@ startDate: "", endDate: "",
                             <input type="checkbox" checked={checked} style={{ display: "none" }}
                               onChange={() => {
                                 const cur = form.daysOfWeek || [];
-                                const next = checked ? cur.filter(x => x !== i) : cur.length < 2 ? [...cur, i].sort((a,b)=>a-b) : cur;
+                                const next = checked
+                                  ? cur.filter(x => x !== i)
+                                  : (cur.length < 2 ? [...cur, i] : [cur[1], i]).sort((a,b)=>a-b);
+                                setForm(f => ({ ...f, daysOfWeek: next }));
+                              }} />
+                            {d}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </FF>
+                )}
+                {form.frequency === "triweekly" && (
+                  <FF label="Days of Week (pick 3)">
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+                      {SCHED_DAYS.map((d, i) => {
+                        const checked = (form.daysOfWeek || []).includes(i);
+                        return (
+                          <label key={i} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, cursor: "pointer",
+                            padding: "3px 10px", borderRadius: 99, border: "1.5px solid " + (checked ? "#3b82f6" : "#e2e8f0"),
+                            background: checked ? "#eff6ff" : "#fff", color: checked ? "#3b82f6" : "#64748b", fontWeight: checked ? 700 : 400 }}>
+                            <input type="checkbox" checked={checked} style={{ display: "none" }}
+                              onChange={() => {
+                                const cur = form.daysOfWeek || [];
+                                const next = checked
+                                  ? cur.filter(x => x !== i)
+                                  : (cur.length < 3 ? [...cur, i] : [cur[1], cur[2], i]).sort((a,b)=>a-b);
                                 setForm(f => ({ ...f, daysOfWeek: next }));
                               }} />
                             {d}
