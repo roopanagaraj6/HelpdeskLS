@@ -1724,7 +1724,7 @@ export default function HelpDesk() {
 
   const categoryDist = useMemo(() => categories.slice(0, 6).map(c => ({ label: c.name, value: categoryCountMap[c.name] || 0, color: c.color })), [categoryCountMap, categories]);
   const categoryDistFull = useMemo(() => {
-    return [...categories].map(c => ({ label: c.name, value: categoryCountMap[c.name] || 0, color: c.color })).sort((a, b) => b.value - a.value);
+    return [...categories].map((c, i) => ({ label: c.name, value: categoryCountMap[c.name] || 0, color: PIE_COLORS[i % PIE_COLORS.length] })).sort((a, b) => b.value - a.value);
   }, [categoryCountMap, categories]);
 
   // ✅ NEW: Dashboard-specific chart data (with org filter)
