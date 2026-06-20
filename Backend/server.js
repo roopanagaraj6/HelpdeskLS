@@ -278,7 +278,7 @@ const ScheduledTask = sequelize.define("ScheduledTask", {
     assignees:   { type: DataTypes.JSON, defaultValue: [] },
     location:    { type: DataTypes.STRING, defaultValue: "" },
     reportedBy:  { type: DataTypes.STRING, defaultValue: "" },
-    frequency: { type: DataTypes.ENUM("daily","weekly","biweekly","monthly","quarterly","halfyearly","yearly"), defaultValue: "weekly" },
+    frequency: { type: DataTypes.ENUM("daily","weekly","biweekly","triweekly","monthly","quarterly","halfyearly","yearly"), defaultValue: "weekly" },
     dayOfWeek:   { type: DataTypes.INTEGER, defaultValue: 1 },
     daysOfWeek:  { type: DataTypes.JSON, defaultValue: [1, 4] },
     dayOfMonth:  { type: DataTypes.INTEGER, defaultValue: 1 },
@@ -2082,7 +2082,13 @@ function calcNextRun(task, fromDate) {
     const hh = parseInt(hhmm[0]); const mm = parseInt(hhmm[1]);
     // Work in IST throughout, convert to UTC only at return
     const nowUTC = fromDate ? new Date(fromDate) : new Date();
-    const now = new Date(nowUTC.getTime() + IST_OFFSET_MS); // now in IST
+    let now = new Date(nowUTC.getTime() + IST_OFFSET_MS); // now in IST
+    // If a future startDate is set, calculate from that date instead of today,
+    // so the schedule doesn't pick dates earlier than the active period.
+    if (task.startDate) {
+        const start = new Date(task.startDate + "T00:00:00");
+        if (start > now) now = start;
+    }
     const next = new Date(now);
     next.setSeconds(0); next.setMilliseconds(0);
     if (task.frequency === "daily") {
