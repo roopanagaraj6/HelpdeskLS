@@ -47,14 +47,23 @@ export const TicketsView = React.memo(function TicketsView(props) {
   const setFilterAssignee = props.setFilterAssignee || (() => {});
   const filterCategory = props.filterCategory || "";
   const setFilterCategory = props.setFilterCategory || (() => {});
+  const orgFilter = props.orgFilter || "all";
+  const setOrgFilter = props.setOrgFilter || (() => {});
+  const deptFilter = props.deptFilter || "all";
+  const setDeptFilter = props.setDeptFilter || (() => {});
+  const departments = props.departments || [];
   const priorityF = props.priorityF || "All";
   const setPriorityF = props.setPriorityF || (() => {});
   const [filterAssigneeSearch, setFilterAssigneeSearch] = React.useState("");
   const [filterCategorySearch, setFilterCategorySearch] = React.useState("");
+  const [filterOrgSearch, setFilterOrgSearch] = React.useState("");
+  const [filterDeptSearch, setFilterDeptSearch] = React.useState("");
   const filterStatusRef = React.useRef(null);
   const filterAssignmentRef = React.useRef(null);
   const filterAssigneeRef = React.useRef(null);
   const filterCategoryRef = React.useRef(null);
+  const filterOrgRef = React.useRef(null);
+  const filterDeptRef = React.useRef(null);
   const filterPriorityRef = React.useRef(null);
   const ticketExportBtnRef = React.useRef(null);
   const ticketColBtnRef = React.useRef(null);
@@ -131,8 +140,8 @@ export const TicketsView = React.memo(function TicketsView(props) {
 
               {/* ASSIGNEE */}
               <div style={{ position: "relative" }} ref={filterAssigneeRef}>
-                <button onClick={() => setActiveFilterDD(v => v === "assignee" ? null : "assignee")} style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 8, border: `1.5px solid ${filterAssignee.length ? "#3b82f6" : "#e2e8f0"}`, background: filterAssignee.length ? "#eff6ff" : "#f8fafc", color: filterAssignee.length ? "#1d4ed8" : "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", whiteSpace: "nowrap" }}>
-                  Assignee{filterAssignee.length ? ` (${filterAssignee.length})` : ""} ▾
+                <button onClick={() => setActiveFilterDD(v => { if (v !== "assignee") setFilterAssigneeSearch(""); return v === "assignee" ? null : "assignee"; })} style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 8, border: `1.5px solid ${filterAssignee.length ? "#3b82f6" : "#e2e8f0"}`, background: filterAssignee.length ? "#eff6ff" : "#f8fafc", color: filterAssignee.length ? "#1d4ed8" : "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", whiteSpace: "nowrap" }}>
+                  Assignee{filterAssignee.length ? `: ${filterAssignee[0]}` : ""} ▾
                 </button>
 
                 {activeFilterDD === "assignee" && (
@@ -140,10 +149,9 @@ export const TicketsView = React.memo(function TicketsView(props) {
                     <input autoFocus placeholder="Search assignee…" value={filterAssigneeSearch} onChange={e => setFilterAssigneeSearch(e.target.value)} style={{ width: "100%", padding: "6px 9px", border: "1.5px solid #e2e8f0", borderRadius: 7, fontSize: 12, boxSizing: "border-box", fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
                     <div style={{ maxHeight: 160, overflowY: "auto", marginTop: 6 }}>
                       {(Array.isArray(users) ? users : []).filter(u => (!filterAssigneeSearch || u.name?.toLowerCase().includes(filterAssigneeSearch.toLowerCase()))).sort((a,b) => (a.name||"").localeCompare(b.name||"")).map(u => {
-                        const sel = filterAssignee.includes(u.name);
+                        const sel = filterAssignee[0] === u.name;
                         return (
-                          <div key={u.id} onClick={() => setFilterAssignee(p => sel ? p.filter(x => x !== u.name) : [...p, u.name])} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 4px", fontSize: 13, cursor: "pointer", borderRadius: 5, color: sel ? "#1d4ed8" : "#374151", background: sel ? "#eff6ff" : "transparent", fontWeight: sel ? 600 : 400 }}>
-                            <span style={{ width: 14, height: 14, border: `1.5px solid ${sel ? "#3b82f6" : "#cbd5e1"}`, borderRadius: 3, background: sel ? "#3b82f6" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", flexShrink: 0 }}>{sel ? "✓" : ""}</span>
+                          <div key={u.id} onClick={() => { setFilterAssignee([u.name]); setActiveFilterDD(null); }} style={{ padding: "5px 4px", fontSize: 13, cursor: "pointer", borderRadius: 5, color: sel ? "#1d4ed8" : "#374151", background: sel ? "#eff6ff" : "transparent", fontWeight: sel ? 600 : 400 }}>
                             {u.name}{!u.active ? " (inactive)" : ""}
                           </div>
                         );
@@ -173,6 +181,48 @@ export const TicketsView = React.memo(function TicketsView(props) {
                   </div>
                 )}
               </div>
+
+              {/* ORGANIZATION */}
+              <div style={{ position: "relative" }} ref={filterOrgRef}>
+                <button onClick={() => setActiveFilterDD(v => { if (v !== "org") setFilterOrgSearch(""); return v === "org" ? null : "org"; })} style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 8, border: `1.5px solid ${orgFilter !== "all" ? "#3b82f6" : "#e2e8f0"}`, background: orgFilter !== "all" ? "#eff6ff" : "#f8fafc", color: orgFilter !== "all" ? "#1d4ed8" : "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", whiteSpace: "nowrap" }}>
+                  Organization{orgFilter !== "all" ? `: ${orgFilter}` : ""} ▾
+                </button>
+                {activeFilterDD === "org" && (
+                  <div style={{ position: "fixed", top: (filterOrgRef.current?.getBoundingClientRect().bottom || 0) + 4, left: filterOrgRef.current?.getBoundingClientRect().left || 0, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 200, minWidth: 210, padding: 10 }}>
+                    <input autoFocus placeholder="Search organization…" value={filterOrgSearch} onChange={e => setFilterOrgSearch(e.target.value)} style={{ width: "100%", padding: "6px 9px", border: "1.5px solid #e2e8f0", borderRadius: 7, fontSize: 12, boxSizing: "border-box", fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                    <div style={{ maxHeight: 160, overflowY: "auto", marginTop: 6 }}>
+                      {(Array.isArray(orgs) ? orgs : []).filter(o => !filterOrgSearch || o.name?.toLowerCase().includes(filterOrgSearch.toLowerCase())).sort((a,b) => (a.name||"").localeCompare(b.name||"")).map(o => (
+                        <div key={o.id} onClick={() => { setOrgFilter(o.name); setDeptFilter("all"); setActiveFilterDD(null); }} style={{ padding: "5px 4px", fontSize: 13, cursor: "pointer", borderRadius: 5, color: orgFilter === o.name ? "#1d4ed8" : "#374151", background: orgFilter === o.name ? "#eff6ff" : "transparent", fontWeight: orgFilter === o.name ? 600 : 400 }}>
+                          {o.name}
+                        </div>
+                      ))}
+                    </div>
+                    {orgFilter !== "all" && <div onClick={() => { setOrgFilter("all"); setDeptFilter("all"); }} style={{ borderTop: "1px solid #f1f5f9", marginTop: 4, paddingTop: 6, color: "#ef4444", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>✕ Clear</div>}
+                  </div>
+                )}
+              </div>
+
+              {/* DEPARTMENT — only shown when an organization is selected */}
+              {orgFilter !== "all" && (
+                <div style={{ position: "relative" }} ref={filterDeptRef}>
+                  <button onClick={() => setActiveFilterDD(v => { if (v !== "dept") setFilterDeptSearch(""); return v === "dept" ? null : "dept"; })} style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 8, border: `1.5px solid ${deptFilter !== "all" ? "#3b82f6" : "#e2e8f0"}`, background: deptFilter !== "all" ? "#eff6ff" : "#f8fafc", color: deptFilter !== "all" ? "#1d4ed8" : "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", whiteSpace: "nowrap" }}>
+                    Department{deptFilter !== "all" ? `: ${deptFilter}` : ""} ▾
+                  </button>
+                  {activeFilterDD === "dept" && (
+                    <div style={{ position: "fixed", top: (filterDeptRef.current?.getBoundingClientRect().bottom || 0) + 4, left: filterDeptRef.current?.getBoundingClientRect().left || 0, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 200, minWidth: 210, padding: 10 }}>
+                      <input autoFocus placeholder="Search department…" value={filterDeptSearch} onChange={e => setFilterDeptSearch(e.target.value)} style={{ width: "100%", padding: "6px 9px", border: "1.5px solid #e2e8f0", borderRadius: 7, fontSize: 12, boxSizing: "border-box", fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                      <div style={{ maxHeight: 160, overflowY: "auto", marginTop: 6 }}>
+                        {(Array.isArray(departments) ? departments : []).filter(d => d.orgName === orgFilter).filter(d => !filterDeptSearch || d.name?.toLowerCase().includes(filterDeptSearch.toLowerCase())).sort((a,b) => (a.name||"").localeCompare(b.name||"")).map(d => (
+                          <div key={d.id} onClick={() => { setDeptFilter(d.name); setActiveFilterDD(null); }} style={{ padding: "5px 4px", fontSize: 13, cursor: "pointer", borderRadius: 5, color: deptFilter === d.name ? "#1d4ed8" : "#374151", background: deptFilter === d.name ? "#eff6ff" : "transparent", fontWeight: deptFilter === d.name ? 600 : 400 }}>
+                            {d.name}
+                          </div>
+                        ))}
+                      </div>
+                      {deptFilter !== "all" && <div onClick={() => setDeptFilter("all")} style={{ borderTop: "1px solid #f1f5f9", marginTop: 4, paddingTop: 6, color: "#ef4444", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>✕ Clear</div>}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* PRIORITY */}
               <div style={{ position: "relative" }} ref={filterPriorityRef}>
@@ -230,8 +280,8 @@ export const TicketsView = React.memo(function TicketsView(props) {
               </div>
 
               {/* Clear all if any active */}
-              {(filterStatus.length > 0 || filterAssignment.length > 0 || filterAssignee.length > 0 || filterCategory || priorityF !== "All" || search || ticketDateFrom || ticketDateTo) && (
-                <span onClick={() => { setFilterStatus([]); setFilterAssignment([]); setFilterAssignee([]); setFilterAssigneeSearch(""); setFilterCategory(""); setPriorityF("All"); setSearch(""); setTicketDateFrom(""); setTicketDateTo(""); setActiveFilterDD(null); }} style={{ padding: "5px 8px", fontSize: 11, color: "#ef4444", cursor: "pointer", fontWeight: 600, borderRadius: 6, border: "1px solid #fecaca", background: "#fff1f2" }}>✕ Clear all</span>
+              {(filterStatus.length > 0 || filterAssignment.length > 0 || filterAssignee.length > 0 || filterCategory || orgFilter !== "all" || deptFilter !== "all" || priorityF !== "All" || search || ticketDateFrom || ticketDateTo) && (
+                <span onClick={() => { setFilterStatus([]); setFilterAssignment([]); setFilterAssignee([]); setFilterAssigneeSearch(""); setFilterCategory(""); setOrgFilter("all"); setDeptFilter("all"); setFilterOrgSearch(""); setFilterDeptSearch(""); setPriorityF("All"); setSearch(""); setTicketDateFrom(""); setTicketDateTo(""); setActiveFilterDD(null); }} style={{ padding: "5px 8px", fontSize: 11, color: "#ef4444", cursor: "pointer", fontWeight: 600, borderRadius: 6, border: "1px solid #fecaca", background: "#fff1f2" }}>✕ Clear all</span>
               )}
               <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
                 <div style={{ position: "relative" }}>

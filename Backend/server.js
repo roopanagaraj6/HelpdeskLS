@@ -1411,6 +1411,7 @@ app.get("/api/tickets/paginated", async (req, res) => {
         const status    = req.query.status    || "";
         const priority  = req.query.priority  || "";
         const org       = req.query.org       || "";
+        const department = req.query.department || "";
         const category  = req.query.category  || "";
         const assignee  = req.query.assignee  || "";
         const dateFrom  = req.query.dateFrom  || "";
@@ -1423,6 +1424,7 @@ app.get("/api/tickets/paginated", async (req, res) => {
         else          { where.status   = { [Op.ne]: "Bin" }; }
         if (priority) where.priority = priority;
         if (org)      where.org      = org;
+        if (department) where.department = department;
         if (category) where.category = category;
         if (search) {
             where[Op.or] = [

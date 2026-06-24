@@ -235,6 +235,8 @@ export default function HelpDesk() {
   const filterAssigneeRef = useRef(null);
   const filterCategoryRef = useRef(null);
   const filterPriorityRef = useRef(null);
+  const filterOrgRef = useRef(null);
+  const filterDeptRef = useRef(null);
   const [showProjFilterDD, setShowProjFilterDD] = useState(false);
   const ticketFilterRef = useRef(null);
   const projFilterRef = useRef(null);
@@ -299,6 +301,7 @@ export default function HelpDesk() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const orgFilter = dashboardOrg;           // global — same state
   const setOrgFilter = setDashboardOrg;     // alias so all existing usages work
+  useEffect(() => { if (orgFilter === "all") setDeptFilter("all"); }, [orgFilter]);
   const [vendorFilter, setVendorFilter] = useState("all");
   const [orgFilterSearch, setOrgFilterSearch] = useState("");
   const [showOrgFilterDD, setShowOrgFilterDD] = useState(false);
@@ -374,6 +377,8 @@ export default function HelpDesk() {
         filterCategoryRef.current && !filterCategoryRef.current.contains(e.target) &&
         filterStatusRef.current && !filterStatusRef.current.contains(e.target) &&
         filterAssignmentRef.current && !filterAssignmentRef.current.contains(e.target) &&
+        filterOrgRef.current && !filterOrgRef.current.contains(e.target) &&
+        filterDeptRef.current && !filterDeptRef.current.contains(e.target) &&
         filterPriorityRef.current && !filterPriorityRef.current.contains(e.target)) {
       setActiveFilterDD(prev => {
         if (prev === "assignee") setFilterAssigneeSearch("");
@@ -417,7 +422,7 @@ export default function HelpDesk() {
   const [ticketsLoading, setTicketsLoading] = useState(false);
   useEffect(() => {
     setTicketPage(1);
-  }, [search, statusF, priorityF, tvFilter, view, orgFilter, filterStatus, filterAssignment, filterAssignee, filterCategory, ticketSort, ticketDateFrom, ticketDateTo]);
+  }, [search, statusF, priorityF, tvFilter, view, orgFilter, deptFilter, filterStatus, filterAssignment, filterAssignee, filterCategory, ticketSort, ticketDateFrom, ticketDateTo]);
   useEffect(() => {
     const _isAgentRole = currentUser?.role === "Agent" || currentUser?.role === "Viewer";
     if (view !== "tickets" && !(_isAgentRole && view === "dashboard")) return;
@@ -428,6 +433,7 @@ export default function HelpDesk() {
     if (debouncedSearch) params.set("search", debouncedSearch);
     if (priorityF !== "All") params.set("priority", priorityF);
     if (orgFilter !== "all") params.set("org", orgFilter);
+    if (deptFilter !== "all") params.set("department", deptFilter);
 
     // tvFilter drives server-side status — takes priority over filterStatus chips
     // Exception: when agent/viewer is on dashboard view, skip tvFilter filters so all tickets load for correct stats
@@ -483,7 +489,7 @@ export default function HelpDesk() {
         setTicketsLoading(false);
       })
       .catch(() => { setTicketsLoading(false); });
-  }, [ticketPage, view, debouncedSearch, priorityF, orgFilter, filterStatus, filterCategory, filterAssignee, filterAssignment, tvFilter, ticketSort, dashboardTimePeriod, ticketDateFrom, ticketDateTo, currentUser]);
+  }, [ticketPage, view, debouncedSearch, priorityF, orgFilter, deptFilter, filterStatus, filterCategory, filterAssignee, filterAssignment, tvFilter, ticketSort, dashboardTimePeriod, ticketDateFrom, ticketDateTo, currentUser]);
 
   // ── Project filters ──
   const [projSearch, setProjSearch] = useState("");
@@ -3217,6 +3223,9 @@ export default function HelpDesk() {
               filterAssignment={filterAssignment} setFilterAssignment={setFilterAssignment}
               filterAssignee={filterAssignee} setFilterAssignee={setFilterAssignee}
               filterCategory={filterCategory} setFilterCategory={setFilterCategory}
+              orgFilter={orgFilter} setOrgFilter={setOrgFilter}
+              deptFilter={deptFilter} setDeptFilter={setDeptFilter}
+              departments={departments}
               priorityF={priorityF} setPriorityF={setPriorityF}
               ticketSearch={search} setTicketSearch={setSearch}
               ticketDateFrom={ticketDateFrom} setTicketDateFrom={setTicketDateFrom}
