@@ -299,8 +299,9 @@ export default function HelpDesk() {
   const [pendingDepartments, setPendingDepartments] = useState([]);
   const [deptFilter, setDeptFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const orgFilter = dashboardOrg;           // global — same state
-  const setOrgFilter = setDashboardOrg;     // alias so all existing usages work
+  const [orgFilter, setOrgFilter] = useState("all");   // independent state for All Tickets view
+  // One-way sync: dashboard org filter → tickets org filter (not the reverse)
+  useEffect(() => { setOrgFilter(dashboardOrg); }, [dashboardOrg]);
   useEffect(() => { if (orgFilter === "all") setDeptFilter("all"); }, [orgFilter]);
   const [vendorFilter, setVendorFilter] = useState("all");
   const [orgFilterSearch, setOrgFilterSearch] = useState("");
