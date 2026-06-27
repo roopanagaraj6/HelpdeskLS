@@ -2518,7 +2518,7 @@ export default function HelpDesk() {
           <div style={{ fontSize: 10, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", marginBottom: 2 }}>Email Address (Unchangeable)</div>
           <div style={{ fontSize: 13, color: "#334155", fontWeight: 500 }}>{currentUser.email}</div>
         </div>
-        <FF label="Full Name"><input style={iS} value={profileForm.name} onChange={e => setProfileForm({ ...profileForm, name: e.target.value })} /></FF>
+        <FF label="Full Name"><input style={{ ...iS, background: "#f1f5f9", color: "#64748b", cursor: "not-allowed" }} value={profileForm.name} disabled /></FF>
         <FF label="Phone Number"><input style={iS} value={profileForm.phone} onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })} /></FF>
 
         {/* ✅ NEW: Activity & Session History Buttons */}

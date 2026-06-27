@@ -18,7 +18,7 @@ export function useProfileHandlers(ctx) {
   // ─── PROFILE HANDLERS (v1) ─────────────────────────────────────────────────
   const saveProfile = async () => {
     try {
-      const up = { ...currentUser, phone: ctx.profileForm?.phone ?? currentUser.phone, name: ctx.profileForm?.name ?? currentUser.name };
+      const up = { ...currentUser, phone: ctx.profileForm?.phone ?? currentUser.phone, name: currentUser.name };
       await axios.put(`${USERS_API}/${currentUser.id}`, up);
       saveSession(up); setCurrentUser(up); setUsers(users.map(u => u.id === currentUser.id ? up : u));
       if (ctx.setEditProfileOpen) ctx.setEditProfileOpen(false);
