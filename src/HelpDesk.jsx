@@ -1769,7 +1769,7 @@ export default function HelpDesk() {
       return {
         label: d.toLocaleDateString("en", { weekday: "short" }),
         value: (currentUser?.role === "Agent" ? null : serverDailyMap[dayKey]) ?? base.filter(t => {
-          const td = getChartDate(t);
+          const td = t.created instanceof Date ? t.created : new Date(t.created);
           return td >= d && td <= dEnd;
         }).length
       };
