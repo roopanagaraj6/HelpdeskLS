@@ -532,15 +532,19 @@ export const TicketsView = React.memo(function TicketsView(props) {
                     {visibleTicketCols.has("category") && <td style={tdStyle} onClick={() => setSelTicket(t)}><span style={{ fontSize: 12, color: "#64748b" }}>{t.category || "—"}</span></td>}
                     {visibleTicketCols.has("status") && <td style={tdStyle} onClick={() => setSelTicket(t)}><Badge label={t.status} style={{ ...STATUS_COLOR[t.status] }} /></td>}
                     <td style={tdStyle} onClick={e => e.stopPropagation()}>
-                      {t.status === "Closed" ? (
+                    {t.status === "Closed" ? (
+                      (currentUser?.role === "Agent" || currentUser?.role === "Viewer") ? (
+                        <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>Closed</span>
+                      ) : (
                         <button
                           onClick={() => updateStatus(t.id, "Reopened")}
                           style={{ padding: "4px 10px", borderRadius: 6, border: "1.5px solid #f59e0b", background: "#fffbeb", color: "#b45309", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", whiteSpace: "nowrap" }}
                         >🔄 Reopen</button>
-                      ) : (
-                        <select value={t.status} onChange={e => updateStatus(t.id, e.target.value)} style={{ ...sS, width: 108, fontSize: 12, padding: "4px 7px" }}>{STATUSES.filter(s => s !== "Bin" || currentUser?.role === "Admin").map(s => <option key={s}>{s}</option>)}</select>
-                      )}
-                    </td>
+                      )
+                    ) : (
+                      <select value={t.status} onChange={e => updateStatus(t.id, e.target.value)} style={{ ...sS, width: 108, fontSize: 12, padding: "4px 7px" }}>{STATUSES.filter(s => s !== "Bin" || (currentUser?.role !== "Agent" && currentUser?.role !== "Viewer")).map(s => <option key={s}>{s}</option>)}</select>
+                    )}
+                  </td>
                   </tr>
                 ))}</tbody>
               </table>
