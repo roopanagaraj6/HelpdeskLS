@@ -926,7 +926,7 @@ export function Modals(props) {
                   )}
                 </>
               ) : (
-                STATUSES.filter(s => s !== "Bin" || (currentUser?.role === "Admin" || currentUser?.role === "Manager")).map(s => <button key={s} onClick={() => s === "Closed" ? updateStatus(selTicket.id, s) : setPendingTicketStatus(s)} style={{ padding: "5px 13px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", background: (pendingTicketStatus === s || selTicket.status === s) ? (STATUS_COLOR[s]?.text || "#64748b") : "#f1f5f9", color: (pendingTicketStatus === s || selTicket.status === s) ? "#fff" : "#64748b", opacity: pendingTicketStatus === s && selTicket.status !== s ? 0.7 : 1 }}>{s}</button>)
+                STATUSES.filter(s => s !== "Bin" || currentUser?.role === "Admin").map(s => <button key={s} onClick={() => s === "Closed" ? updateStatus(selTicket.id, s) : setPendingTicketStatus(s)} style={{ padding: "5px 13px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", background: (pendingTicketStatus === s || selTicket.status === s) ? (STATUS_COLOR[s]?.text || "#64748b") : "#f1f5f9", color: (pendingTicketStatus === s || selTicket.status === s) ? "#fff" : "#64748b", opacity: pendingTicketStatus === s && selTicket.status !== s ? 0.7 : 1 }}>{s}</button>)
               )}
             </div>
             {/* Save button for pending status changes */}

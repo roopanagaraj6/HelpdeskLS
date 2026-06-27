@@ -3155,7 +3155,7 @@ export default function HelpDesk() {
               </div>
 
               {/* 🗑 Bin — Admin/Manager only */}
-            {(currentUser?.role === "Admin" || currentUser?.role === "Manager") && (
+            {(currentUser?.role === "Admin") && (
               <button onClick={() => switchView("bin")} title="Bin"
                 style={{ width: 36, height: 36, borderRadius: 9, border: "1.5px solid #e2e8f0", background: view === "settings" && settingsTab === "bin" ? "#fee2e2" : "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
                 🗑️

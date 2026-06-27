@@ -538,7 +538,7 @@ export const TicketsView = React.memo(function TicketsView(props) {
                           style={{ padding: "4px 10px", borderRadius: 6, border: "1.5px solid #f59e0b", background: "#fffbeb", color: "#b45309", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", whiteSpace: "nowrap" }}
                         >🔄 Reopen</button>
                       ) : (
-                        <select value={t.status} onChange={e => updateStatus(t.id, e.target.value)} style={{ ...sS, width: 108, fontSize: 12, padding: "4px 7px" }}>{STATUSES.filter(s => s !== "Bin" || (currentUser?.role !== "Agent" && currentUser?.role !== "Viewer")).map(s => <option key={s}>{s}</option>)}</select>
+                        <select value={t.status} onChange={e => updateStatus(t.id, e.target.value)} style={{ ...sS, width: 108, fontSize: 12, padding: "4px 7px" }}>{STATUSES.filter(s => s !== "Bin" || currentUser?.role === "Admin").map(s => <option key={s}>{s}</option>)}</select>
                       )}
                     </td>
                   </tr>
