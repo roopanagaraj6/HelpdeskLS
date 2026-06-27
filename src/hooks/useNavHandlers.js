@@ -51,13 +51,16 @@ export function useNavHandlers(ctx) {
     try {
       switch (notificationType) {
         // ── TICKET EVENTS ──
-        case "ticket_created":
+case "ticket_created":
         case "ticket_closed":
         case "ticket_status":
         case "ticket_edited":
         case "ticket_forwarded":
         case "forward_approved":
         case "forward_rejected":
+        case "reopen_request":
+        case "ticket_assigned":
+        case "ticket_assignment":
           if (notification.ticketId) {
             let ticket = tickets.find(t => t.id === notification.ticketId);
             if (!ticket) {

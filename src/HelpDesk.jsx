@@ -3132,7 +3132,7 @@ export default function HelpDesk() {
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontSize: 12, fontWeight: 700, color: "#0f172a", marginBottom: 3 }}>{item.title}</div>
                               <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.5, marginBottom: 6 }}>{item.message}</div>
-                              {item.ticketId && <div style={{ fontSize: 10, color: "#3b82f6", fontFamily: "monospace", marginBottom: 6 }}>{item.ticketId}</div>}
+                              {item.ticketId && <div onClick={() => handleNotificationClick(item)} style={{ fontSize: 10, color: "#3b82f6", fontFamily: "monospace", marginBottom: 6, cursor: "pointer", textDecoration: "underline" }}>{item.ticketId}</div>}
                               {/* Accept/Reject for pending forward requests */}
                               {item.type === "forward_request" && !item.resolved && (currentUser?.role === "Admin" || currentUser?.role === "Manager") && (
                                 <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
