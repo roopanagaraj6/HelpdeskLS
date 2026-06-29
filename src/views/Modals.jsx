@@ -122,6 +122,7 @@ export function Modals(props) {
     // confirmation
     showConfirmation, setShowConfirmation,
     confirmationConfig,
+    setConfirmModal,
 
     // print
     printFrameRef,
@@ -913,15 +914,46 @@ export function Modals(props) {
               {selTicket.status === "Closed" ? (
                 <>
                   {(currentUser?.role === "Admin" || currentUser?.role === "Manager") && (
-                    <button onClick={() => { setClosingTicketId(selTicket.id); setTicketRemark(""); setShowRemarkModal(true); }} style={{ padding: "5px 13px", borderRadius: 7, border: "1.5px solid #3b82f6", background: pendingTicketStatus === "Open" ? "#3b82f6" : "#eff6ff", color: pendingTicketStatus === "Open" ? "#fff" : "#1d4ed8", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif" }}>🔄 Reopen Ticket</button>
+                    <button onClick={() => updateStatus(selTicket.id, "Reopened")} style={{ padding: "5px 13px", borderRadius: 7, border: "1.5px solid #3b82f6", background: pendingTicketStatus === "Open" ? "#3b82f6" : "#eff6ff", color: pendingTicketStatus === "Open" ? "#fff" : "#1d4ed8", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif" }}>🔄 Reopen Ticket</button>
                   )}
                   {(currentUser?.role === "Agent" || currentUser?.role === "Viewer") && (
-                    <button onClick={async () => {
-                      const admins = (Array.isArray(users) ? users : []).filter(u => u.active && (u.role === "Admin" || u.role === "Manager"));
-                      for (const admin of admins) {
-                        await axios.post(NOTIFICATIONS_API, { userId: admin.id, type: "reopen_request", icon: "🔄", title: "Reopen Request", message: `${currentUser.name} requested to reopen ticket "${selTicket.summary}" (${selTicket.id})`, ticketId: selTicket.id, read: false, alerted: false, resolved: null }).catch(() => {});
-                      }
-                      setCustomAlert({ show: true, message: "✅ Reopen request sent to admins for approval", type: "success" });
+                    <button onClick={() => {
+                      setConfirmModal({
+                        show: true,
+                        title: "Request Reopen",
+                        message: "Enter a remark explaining why this ticket should be reopened. Admins/Managers will review this before approving.",
+                        fields: [
+                          { name: "remark", label: "📝 Reopen Remark", type: "textarea", placeholder: "Explain why this ticket needs to be reopened…", value: "" }
+                        ],
+                        confirmLabel: "🔄 Send Reopen Request",
+                        confirmDanger: false,
+                        onConfirm: async (data) => {
+                          const remark = (data.remark || "").trim();
+                          if (!remark) {
+                            setCustomAlert({ show: true, message: "⚠️ Please enter a reopen remark before proceeding", type: "error" });
+                            return;
+                          }
+                          const nowISO = new Date().toISOString();
+                          try {
+                            const newTimelineEvent = { action: "Reopen Requested", by: currentUser.name, date: nowISO, note: remark, visibility: "internal" };
+                            const update = { ...selTicket, timeline: [...(selTicket.timeline || []), newTimelineEvent] };
+                            const apiUrl = isTrueWebcast(selTicket) ? `${BASE_URL}/webcasts/${selTicket.id}` : `${TICKETS_API}/${selTicket.id}`;
+                            await axios.put(apiUrl, update);
+                            setTickets(p => p.map(x => x.id === selTicket.id ? { ...update, updated: new Date(nowISO) } : x));
+                            setSelTicket({ ...update, updated: new Date(nowISO) });
+
+                            const admins = (Array.isArray(users) ? users : []).filter(u => u.active && (u.role === "Admin" || u.role === "Manager"));
+                            for (const admin of admins) {
+                              await axios.post(NOTIFICATIONS_API, { userId: admin.id, type: "reopen_request", icon: "🔄", title: "Reopen Request", message: `${currentUser.name} requested to reopen ticket "${selTicket.summary}" (${selTicket.id}): ${remark}`, ticketId: selTicket.id, read: false, alerted: false, resolved: null }).catch(() => {});
+                            }
+                            setConfirmModal({ show: false });
+                            setCustomAlert({ show: true, message: "✅ Reopen request sent to admins for approval", type: "success" });
+                          } catch (e) {
+                            setCustomAlert({ show: true, message: "Failed to send reopen request. Please try again.", type: "error" });
+                          }
+                        },
+                        onCancel: () => setConfirmModal({ show: false })
+                      });
                     }} style={{ padding: "5px 13px", borderRadius: 7, border: "1.5px solid #f59e0b", background: "#fffbeb", color: "#b45309", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif" }}>🔄 Request Reopen</button>
                   )}
                 </>

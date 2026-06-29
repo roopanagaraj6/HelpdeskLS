@@ -3406,6 +3406,7 @@ export default function HelpDesk() {
   newVendor={newVendor} setNewVendor={setNewVendor} addVendor={addVendor}
   showConfirmation={showConfirmation} setShowConfirmation={setShowConfirmation}
   confirmationConfig={confirmationConfig}
+  setConfirmModal={setConfirmModal}
   printFrameRef={printFrameRef}
   toggleAssignee={toggleAssignee}
   addCC={addCC}
