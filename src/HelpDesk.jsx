@@ -1760,7 +1760,7 @@ export default function HelpDesk() {
         }).length
       }));
     }
-    const days = 7;
+    const days = 8;
     return Array.from({ length: days }, (_, i) => {
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const d = new Date(today); d.setDate(today.getDate() - (days - 1 - i));

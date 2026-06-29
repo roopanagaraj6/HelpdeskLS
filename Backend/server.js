@@ -1284,9 +1284,9 @@ app.get("/api/stats/dashboard", async (req, res) => {
             ),
             sequelize.query(
                 `SELECT DATE(createdAt) as day, COUNT(*) as cnt FROM Tickets t
-                 WHERE t.status != 'Bin' ${orgClause}
-                 AND t.createdAt >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-                 GROUP BY day ORDER BY day`,
+                WHERE t.status != 'Bin' ${orgClause}
+                AND t.createdAt >= DATE_SUB(NOW(), INTERVAL 8 DAY)
+                GROUP BY day ORDER BY day`,
                 { type: sequelize.QueryTypes.SELECT }
             ),
             sequelize.query(
