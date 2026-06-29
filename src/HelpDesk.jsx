@@ -3274,6 +3274,8 @@ export default function HelpDesk() {
               reportTimeRange={reportTimeRange} setReportTimeRange={setReportTimeRange}
               savedReports={savedReports} setSavedReports={setSavedReports}
               dashboardOrg={dashboardOrg}
+              setConfirmModal={setConfirmModal}
+              setCustomAlert={setCustomAlert}
             />
           )}
 

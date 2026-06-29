@@ -542,7 +542,7 @@ export const TicketsView = React.memo(function TicketsView(props) {
                         >🔄 Reopen</button>
                       )
                     ) : (
-                      <select value={t.status} onChange={e => updateStatus(t.id, e.target.value)} style={{ ...sS, width: 108, fontSize: 12, padding: "4px 7px" }}>{STATUSES.filter(s => s !== "Bin" || (currentUser?.role !== "Agent" && currentUser?.role !== "Viewer")).map(s => <option key={s}>{s}</option>)}</select>
+                      <select value={t.status} onChange={e => updateStatus(t.id, e.target.value)} style={{ ...sS, width: 108, fontSize: 12, padding: "4px 7px" }}>{STATUSES.filter(s => s !== "Bin" || currentUser?.role === "Admin").map(s => <option key={s}>{s}</option>)}</select>
                     )}
                   </td>
                   </tr>

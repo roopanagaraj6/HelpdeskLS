@@ -1617,7 +1617,7 @@ export function Modals(props) {
                   style={{ ...iS, cursor: "pointer" }}
                 >
                   <option value="">— Select who closed this ticket —</option>
-                  {[...users].sort((a, b) => a.name.localeCompare(b.name)).map(u => (
+                  {[currentUser].filter(Boolean).map(u => (
                     <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
                   ))}
                 </select>

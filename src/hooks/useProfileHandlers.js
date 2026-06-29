@@ -179,7 +179,7 @@ export function useProfileHandlers(ctx) {
       const minutesElapsed = (new Date() - loginTime) / 60000;
 
       // Step 1: Set Idle after 15 min of On Duty — only once
-      if (u.status === "On Duty" && minutesElapsed >= 15) {
+      if (u.status === "On Duty" && minutesElapsed >= 30) {
         const idleUp = { ...u, status: "Idle", idleAt: new Date().toISOString(), _isSystemUpdate: true };
         try {
           await axios.put(`${USERS_API}/${u.id}`, idleUp);

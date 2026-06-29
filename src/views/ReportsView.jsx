@@ -18,6 +18,7 @@ export function ReportsView(props) {
     savedReports, setSavedReports,
     dashboardOrg,
     getDefaultCols,
+    setConfirmModal, setCustomAlert,
   } = props;
 
   const [reportBuilderOpen, setReportBuilderOpen] = useState(false);
@@ -223,9 +224,26 @@ export function ReportsView(props) {
             };
 
             const deleteReport = (id) => {
-              axios.delete(`${BASE_URL}/saved-reports/${id}`)
-                .then(() => setSavedReports(prev => prev.filter(r => r.id !== id)))
-                .catch(() => alert("Failed to delete report"));
+              setConfirmModal({
+                show: true,
+                title: "Delete Report",
+                message: "Are you sure you want to delete this saved report? This action cannot be undone.",
+                confirmLabel: "🗑 Delete",
+                confirmDanger: true,
+                onConfirm: () => {
+                  axios.delete(`${BASE_URL}/saved-reports/${id}`)
+                    .then(() => {
+                      setSavedReports(prev => prev.filter(r => r.id !== id));
+                      setConfirmModal({ show: false });
+                      setCustomAlert?.({ show: true, message: "✅ Report deleted", type: "success" });
+                    })
+                    .catch(() => {
+                      setConfirmModal({ show: false });
+                      setCustomAlert?.({ show: true, message: "Failed to delete report", type: "error" });
+                    });
+                },
+                onCancel: () => setConfirmModal({ show: false })
+              });
             };
 
             const loadReport = async (r) => {
