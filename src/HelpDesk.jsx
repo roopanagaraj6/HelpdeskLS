@@ -271,8 +271,38 @@ export default function HelpDesk() {
 
   const [dashboardOrgSearch, setDashboardOrgSearch] = useState("");
   const [showDashboardOrgDD, setShowDashboardOrgDD] = useState(false);
+
+  const getDashboardDateRange = (period) => {
+    const now = new Date();
+    let start, end;
+    if (period === "this_month") {
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = now;
+    } else if (period === "1m") {
+      start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      end = new Date(now.getFullYear(), now.getMonth(), 0);
+    } else if (period === "3m") {
+      start = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+      end = new Date(now.getFullYear(), now.getMonth(), 0);
+    } else if (period === "6m") {
+      start = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+      end = new Date(now.getFullYear(), now.getMonth(), 0);
+    } else if (period === "this_year") {
+      start = new Date(now.getFullYear(), 0, 1);
+      end = now;
+    } else if (period === "1y") {
+      start = new Date(now.getFullYear() - 1, 0, 1);
+      end = new Date(now.getFullYear() - 1, 11, 31);
+    } else {
+      start = null; end = null;
+    }
+    const _p = n => String(n).padStart(2, "0");
+    const fmt = d => d ? `${d.getFullYear()}-${_p(d.getMonth()+1)}-${_p(d.getDate())}` : null;
+    return { dateFrom: fmt(start), dateTo: fmt(end) };
+  };
+
   // ✅ NEW: Dashboard time period filter
-  const [dashboardTimePeriod, setDashboardTimePeriod] = useState("all");  // 1d, 7d, 1m, 3m, 6m, 1y, all
+  const [dashboardTimePeriod, setDashboardTimePeriod] = useState("all");  // 1d, 7d, 1m, 3m, 6m, 1y, this_month, this_year, all
   useEffect(() => {
     const now = new Date();
     let dateFrom = "";
@@ -280,11 +310,13 @@ export default function HelpDesk() {
       const d = new Date();
       if (dashboardTimePeriod === "1d") d.setHours(0, 0, 0, 0);
       else if (dashboardTimePeriod === "7d") d.setDate(d.getDate() - 7);
-      else if (dashboardTimePeriod === "1m") d.setMonth(d.getMonth() - 1);
-      else if (dashboardTimePeriod === "3m") d.setMonth(d.getMonth() - 3);
-      else if (dashboardTimePeriod === "6m") d.setMonth(d.getMonth() - 6);
-      else if (dashboardTimePeriod === "1y") d.setFullYear(d.getFullYear() - 1);
-      const _pad = n => String(n).padStart(2,"0"); dateFrom = `${d.getFullYear()}-${_pad(d.getMonth()+1)}-${_pad(d.getDate())}`;
+      else if (["1m","3m","6m","1y","this_month","this_year"].includes(dashboardTimePeriod)) {
+        const r = getDashboardDateRange(dashboardTimePeriod);
+        dateFrom = r.dateFrom;
+      }
+      if (!["1m","3m","6m","1y","this_month","this_year"].includes(dashboardTimePeriod)) {
+        const _pad = n => String(n).padStart(2,"0"); dateFrom = `${d.getFullYear()}-${_pad(d.getMonth()+1)}-${_pad(d.getDate())}`;
+      }
     }
     setReportFilters(f => ({
       ...f,
@@ -461,11 +493,13 @@ export default function HelpDesk() {
         const cutoff = new Date();
         if (dashboardTimePeriod === "1d") cutoff.setHours(0, 0, 0, 0);
         else if (dashboardTimePeriod === "7d") cutoff.setDate(cutoff.getDate() - 7);
-        else if (dashboardTimePeriod === "1m") cutoff.setMonth(cutoff.getMonth() - 1);
-        else if (dashboardTimePeriod === "3m") cutoff.setMonth(cutoff.getMonth() - 3);
-        else if (dashboardTimePeriod === "6m") cutoff.setMonth(cutoff.getMonth() - 6);
-        else if (dashboardTimePeriod === "1y") cutoff.setFullYear(cutoff.getFullYear() - 1);
-        const _p2 = n => String(n).padStart(2,"0"); params.set("dateFrom", `${cutoff.getFullYear()}-${_p2(cutoff.getMonth()+1)}-${_p2(cutoff.getDate())}`);
+        if (["1m","3m","6m","1y","this_month","this_year"].includes(dashboardTimePeriod)) {
+          const r = getDashboardDateRange(dashboardTimePeriod);
+          params.set("dateFrom", r.dateFrom);
+          params.set("dateTo", r.dateTo);
+        } else {
+          const _p2 = n => String(n).padStart(2,"0"); params.set("dateFrom", `${cutoff.getFullYear()}-${_p2(cutoff.getMonth()+1)}-${_p2(cutoff.getDate())}`);
+        }
       } else if (ticketDateFrom && tvFilter !== "reopened") {
         params.set("dateFrom", ticketDateFrom);
         if (ticketDateTo) params.set("dateTo", ticketDateTo);
@@ -1397,15 +1431,16 @@ export default function HelpDesk() {
 
     // ✅ NEW: Filter by time period
     const now = new Date();
-    const cutoffDate = new Date();
+    let cutoffDate = new Date();
 
     switch (dashboardTimePeriod) {
       case "1d": cutoffDate.setHours(0, 0, 0, 0); break;
       case "7d": cutoffDate.setDate(cutoffDate.getDate() - 7); break;
-      case "1m": cutoffDate.setMonth(cutoffDate.getMonth() - 1); break;
-      case "3m": cutoffDate.setMonth(cutoffDate.getMonth() - 3); break;
-      case "6m": cutoffDate.setMonth(cutoffDate.getMonth() - 6); break;
-      case "1y": cutoffDate.setFullYear(cutoffDate.getFullYear() - 1); break;
+      case "1m": case "3m": case "6m": case "1y": case "this_month": case "this_year": {
+        const r = getDashboardDateRange(dashboardTimePeriod);
+        cutoffDate = new Date(r.dateFrom);
+        break;
+      }
       case "all": default: return data;
     }
 
@@ -1473,13 +1508,14 @@ export default function HelpDesk() {
     if (deptFilter !== "all" && t.department !== deptFilter) return false;
     if (categoryFilter !== "all" && t.category !== categoryFilter) return false;
     if (dashboardTimePeriod !== "all" && cvd.id !== "reopened") {
-      const cutoff = new Date();
+      let cutoff = new Date();
       if (dashboardTimePeriod === "1d") cutoff.setHours(0, 0, 0, 0);
       else if (dashboardTimePeriod === "7d") { cutoff.setDate(cutoff.getDate() - 7); cutoff.setHours(0, 0, 0, 0); }
-      else if (dashboardTimePeriod === "1m") { cutoff.setMonth(cutoff.getMonth() - 1); cutoff.setHours(0, 0, 0, 0); }
-      else if (dashboardTimePeriod === "3m") { cutoff.setMonth(cutoff.getMonth() - 3); cutoff.setHours(0, 0, 0, 0); }
-      else if (dashboardTimePeriod === "6m") { cutoff.setMonth(cutoff.getMonth() - 6); cutoff.setHours(0, 0, 0, 0); }
-      else if (dashboardTimePeriod === "1y") { cutoff.setFullYear(cutoff.getFullYear() - 1); cutoff.setHours(0, 0, 0, 0); }
+      else if (["1m","3m","6m","1y","this_month","this_year"].includes(dashboardTimePeriod)) {
+        const r = getDashboardDateRange(dashboardTimePeriod);
+        cutoff = new Date(r.dateFrom);
+        cutoff.setHours(0, 0, 0, 0);
+      }
       const isClosed = t.status === "Closed";
       const closedDate = isClosed
         ? (t.closedAt ? new Date(t.closedAt) : (() => { const e = (t.timeline||[]).slice().reverse().find(e=>e.action?.includes("Status changed to Closed")); return e?.date ? new Date(e.date) : null; })())
@@ -1681,11 +1717,13 @@ export default function HelpDesk() {
       const cutoff = new Date();
       if (dashboardTimePeriod === "1d") cutoff.setHours(0, 0, 0, 0);
       else if (dashboardTimePeriod === "7d") cutoff.setDate(cutoff.getDate() - 7);
-      else if (dashboardTimePeriod === "1m") cutoff.setMonth(cutoff.getMonth() - 1);
-      else if (dashboardTimePeriod === "3m") cutoff.setMonth(cutoff.getMonth() - 3);
-      else if (dashboardTimePeriod === "6m") cutoff.setMonth(cutoff.getMonth() - 6);
-      else if (dashboardTimePeriod === "1y") cutoff.setFullYear(cutoff.getFullYear() - 1);
-      const _p3 = n => String(n).padStart(2,"0"); params.set("dateFrom", `${cutoff.getFullYear()}-${_p3(cutoff.getMonth()+1)}-${_p3(cutoff.getDate())}`);
+      if (["1m","3m","6m","1y","this_month","this_year"].includes(dashboardTimePeriod)) {
+        const r = getDashboardDateRange(dashboardTimePeriod);
+        params.set("dateFrom", r.dateFrom);
+        params.set("dateTo", r.dateTo);
+      } else {
+        const _p3 = n => String(n).padStart(2,"0"); params.set("dateFrom", `${cutoff.getFullYear()}-${_p3(cutoff.getMonth()+1)}-${_p3(cutoff.getDate())}`);
+      }
     }
     const qs = params.toString();
     setDashboardStatsLoading(true);
@@ -2205,12 +2243,13 @@ export default function HelpDesk() {
                     const _ec = new Date();
                     if (dashboardTimePeriod === "1d") _ec.setHours(0,0,0,0);
                     else if (dashboardTimePeriod === "7d") _ec.setDate(_ec.getDate()-7);
-                    else if (dashboardTimePeriod === "1m") _ec.setMonth(_ec.getMonth()-1);
-                    else if (dashboardTimePeriod === "3m") _ec.setMonth(_ec.getMonth()-3);
-                    else if (dashboardTimePeriod === "6m") _ec.setMonth(_ec.getMonth()-6);
-                    else if (dashboardTimePeriod === "1y") _ec.setFullYear(_ec.getFullYear()-1);
-                    const _p2 = n => String(n).padStart(2,"0");
-                    exportParams.set("dateFrom", `${_ec.getFullYear()}-${_p2(_ec.getMonth()+1)}-${_p2(_ec.getDate())}`);
+                    if (["1m","3m","6m","1y","this_month","this_year"].includes(dashboardTimePeriod)) {
+                      const r = getDashboardDateRange(dashboardTimePeriod);
+                      exportParams.set("dateFrom", r.dateFrom);
+                      exportParams.set("dateTo", r.dateTo);
+                    } else {
+                      exportParams.set("dateFrom", `${_ec.getFullYear()}-${_p2(_ec.getMonth()+1)}-${_p2(_ec.getDate())}`);
+                    }
                   } else if (ticketDateFrom && tvFilter !== "reopened") {
                     exportParams.set("dateFrom", ticketDateFrom);
                     if (ticketDateTo) exportParams.set("dateTo", ticketDateTo);
@@ -3048,9 +3087,11 @@ export default function HelpDesk() {
                     <option value="all">📊 All Time</option>
                     <option value="1d">📅 Today</option>
                     <option value="7d">📅 Last 7 Days</option>
+                    <option value="this_month">📊 This Month</option>
                     <option value="1m">📊 Last Month</option>
                     <option value="3m">📊 Last 3 Months</option>
                     <option value="6m">📊 Last 6 Months</option>
+                    <option value="this_year">📊 This Year</option>
                     <option value="1y">📊 Last Year</option>
                   </select>
                   {dashboardTimePeriod !== "all" ? (
