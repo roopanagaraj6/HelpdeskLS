@@ -153,6 +153,7 @@ export default function HelpDesk() {
   const [categories, setCategories] = useState([]);
   const [customAttrs, setCustomAttrs] = useState([]);
   const [tickets, setTickets] = useState([]);
+  const [binTickets, setBinTickets] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = typeof window !== "undefined" && window.innerWidth < 900;
@@ -525,6 +526,23 @@ export default function HelpDesk() {
       })
       .catch(() => { setTicketsLoading(false); });
   }, [ticketPage, view, debouncedSearch, priorityF, orgFilter, deptFilter, filterStatus, filterCategory, filterAssignee, filterAssignment, tvFilter, ticketSort, dashboardTimePeriod, ticketDateFrom, ticketDateTo, currentUser]);
+
+  // ── Bin tickets fetch ──
+  useEffect(() => {
+    if (view !== "bin") return;
+    axios.get(`${BASE_URL}/tickets/paginated?status=Bin&limit=999`)
+      .then(res => {
+        const parsed = (res.data.tickets || []).map(t => ({
+          ...t,
+          created: new Date(t.createdAt || t.created),
+          updated: new Date(t.updatedAt || t.updated),
+          assignees: Array.isArray(t.assignees) ? t.assignees
+            : (typeof t.assignees === "string" ? JSON.parse(t.assignees) : []),
+        }));
+        setBinTickets(parsed);
+      })
+      .catch(() => {});
+  }, [view]);
 
   // ── Project filters ──
   const [projSearch, setProjSearch] = useState("");
@@ -1979,10 +1997,9 @@ export default function HelpDesk() {
           updateTracking, calculateSessionDuration,
           saveProfile }                                   = useProfileHandlers(ctx);
   const restoreTicket = async (id) => {
-    const t = tickets.find(x => x.id === id); if (!t) return;
     try {
       await axios.put(`${TICKETS_API}/${id}`, { status: "Open" });
-      setTickets(p => p.map(x => x.id === id ? { ...x, status: "Open" } : x));
+      setBinTickets(p => p.filter(x => x.id !== id));
       setCustomAlert({ show: true, message: "✅ Ticket restored to Open", type: "success" });
     } catch (e) {
       setCustomAlert({ show: true, message: "❌ Failed to restore ticket", type: "error" });
@@ -2001,7 +2018,7 @@ export default function HelpDesk() {
   const permanentDeleteTicket = async (id) => {
     try {
       await axios.delete(`${TICKETS_API}/${id}`);
-      setTickets(p => p.filter(x => x.id !== id));
+      setBinTickets(p => p.filter(x => x.id !== id));
       setCustomAlert({ show: true, message: "🗑️ Ticket permanently deleted", type: "success" });
     } catch (e) {
       setCustomAlert({ show: true, message: "❌ Failed to delete ticket", type: "error" });
@@ -3323,7 +3340,7 @@ export default function HelpDesk() {
           {/* ── BIN ── */}
           {view === "bin" && (
             <BinView
-              tickets={tickets} projects={projects} currentUser={currentUser}
+              tickets={binTickets} projects={projects} currentUser={currentUser}
               restoreTicket={restoreTicket} restoreProject={restoreProject}
               permanentDeleteTicket={permanentDeleteTicket}
               permanentDeleteProject={permanentDeleteProject}
