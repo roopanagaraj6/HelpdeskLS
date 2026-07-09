@@ -519,8 +519,19 @@ export function useTicketHandlers(ctx) {
       setCustomAlert({ show: true, message: "⚠️ Remark is mandatory before closing the ticket", type: "error" });
       return;
     }
-    const t = tickets.find(x => x.id === ticketId);
-    if (!isReopening && !closedDateVal) {
+    // ✅ FIX: tickets opened from a notification/inbox link (e.g. a reopen
+    // request) are fetched directly from the API into `selTicket` and are
+    // NOT necessarily present in the `tickets` list array. Fall back to
+    // `selTicket` so the reopen/close action still works in that case.
+    let t = tickets.find(x => x.id === ticketId) || (selTicket?.id === ticketId ? selTicket : null);
+// The rest of the app expects `created`/`updated` to be real Date objects
+// (that's what loadData() normalizes tickets to). A ticket pulled straight
+// from `selTicket` via a raw API fetch won't have that yet — normalize it
+// here so anything derived from `t` downstream (including what we insert
+// back into `tickets`) has the right shape.
+if (t && !(t.created instanceof Date)) {
+  t = { ...t, created: new Date(t.createdAt || t.created) };
+}    if (!isReopening && !closedDateVal) {
       setCustomAlert({ show: true, message: "⚠️ Closed date is mandatory before closing the ticket", type: "error" });
       return;
     }
@@ -529,7 +540,10 @@ export function useTicketHandlers(ctx) {
       return;
     }
 
-    if (!t) return;
+    if (!t) {
+      setCustomAlert({ show: true, message: "❌ Couldn't find this ticket to update. Please refresh and try again.", type: "error" });
+      return;
+    }
     try {
       const nowISO = new Date().toISOString();
       const isReopeningNow = isReopening;
@@ -544,7 +558,11 @@ export function useTicketHandlers(ctx) {
       const updatedT = { ...t, status: newStatus, updated: nowISO, closedBy: newStatus === "Closed" ? closedByName : null, closedAt: newStatus === "Closed" ? (closedDateVal ? new Date(closedDateVal).toISOString() : nowISO) : null, timeline: [...(t.timeline || []), newTimelineEvent] };
       const apiUrl = `${TICKETS_API}/${ticketId}`;
       await axios.put(apiUrl, updatedT);
-      setTickets(p => p.map(x => x.id === ticketId ? { ...updatedT, updated: new Date(nowISO) } : x));
+      setTickets(p => {
+        const exists = p.some(x => x.id === ticketId);
+        const finalT = { ...updatedT, updated: new Date(nowISO) };
+        return exists ? p.map(x => x.id === ticketId ? finalT : x) : [finalT, ...p];
+      });
       if (selTicket?.id === ticketId) setSelTicket({ ...updatedT, updated: new Date(nowISO) });
 
       addDailyNotif({ type: newStatus === "Closed" ? "ticket_closed" : "ticket_reopened", icon: newStatus === "Closed" ? "✅" : "🔄", text: `${currentUser.name} ${newStatus === "Closed" ? "closed" : "reopened"} ticket ${ticketId}`, ticketId, by: currentUser.name });
