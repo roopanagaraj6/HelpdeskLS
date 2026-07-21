@@ -1,5 +1,5 @@
 // ─── SERVER CONFIGURATION ─────────────────────────────────────────────────────
-export const SERVER_IP = "10.0.2.111";
+export const SERVER_IP = "10.0.102.14";
 export const BASE_URL = `http://${SERVER_IP}:5000/api`;
 
 // ─── API ENDPOINTS ─────────────────────────────────────────────────────────────
